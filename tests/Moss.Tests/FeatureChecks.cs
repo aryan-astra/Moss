@@ -236,7 +236,7 @@ internal static class FeatureChecks
 		Program.Check(hub.Recent.Count == 100, "event stream stays bounded");
 
 		string oldPack = Path.Combine(Path.GetTempPath(), "moss-old-pack.json");
-		string mossText = File.ReadAllText(Path.Combine(Program.RepoRoot, "characters", "moss", "character.json"));
+		string mossText = File.ReadAllText(Path.Combine(Program.RepoRoot, "characters", "moss", "character.json")).Replace("\r\n", "\n");
 		foreach (string extra in new[] { "Hanging", "Carrying", "Hammering", "Peeking", "Balancing" })
 		{
 			string marker = ",\n    \"" + extra + "\": {";
