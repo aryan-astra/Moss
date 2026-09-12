@@ -134,6 +134,13 @@ internal sealed class FeatureLabForm : Form
 		BackColor = paper;
 		ForeColor = ink;
 		AutoScaleMode = AutoScaleMode.Dpi;
+		try
+		{
+			Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+		}
+		catch
+		{
+		}
 		Panel top = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(12, 6, 12, 4), BackColor = sage };
 		search.PlaceholderText = "Search actions…  (try: climb, music, hammer, dance)";
 		search.TextChanged += delegate { RefreshNav(); };

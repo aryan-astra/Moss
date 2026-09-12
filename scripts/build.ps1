@@ -41,6 +41,9 @@ Copy-Item (Join-Path $portable '*') $dist -Recurse -Force
 foreach ($item in @('characters', 'README.md', 'LICENSE', 'licenses', 'uninstall-portable.ps1')) {
 	Copy-Item (Join-Path $root $item) $dist -Recurse -Force
 }
+$brandDist = Join-Path (Join-Path $dist 'assets') 'branding'
+New-Item -ItemType Directory -Path $brandDist -Force | Out-Null
+Copy-Item (Join-Path (Join-Path (Join-Path $root 'assets') 'branding') '*') $brandDist -Force
 $docsDist = Join-Path $dist 'docs'
 New-Item -ItemType Directory -Path $docsDist -Force | Out-Null
 Get-ChildItem -LiteralPath (Join-Path $root 'docs') | Where-Object { $_.Name -ne 'evidence' } | ForEach-Object { Copy-Item $_.FullName $docsDist -Recurse -Force }

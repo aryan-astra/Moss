@@ -60,6 +60,13 @@ internal sealed class SettingsForm : Form
 		BackColor = paper;
 		ForeColor = ink;
 		base.AutoScaleMode = AutoScaleMode.Dpi;
+		try
+		{
+			Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+		}
+		catch
+		{
+		}
 		Panel panel = new Panel
 		{
 			Dock = DockStyle.Left,
@@ -74,14 +81,34 @@ internal sealed class SettingsForm : Form
 			Height = 60,
 			Dock = DockStyle.Top
 		};
-		FlowLayoutPanel flowLayoutPanel = new FlowLayoutPanel
+		PictureBox brand = new PictureBox
+		{
+			Height = 84,
+			Dock = DockStyle.Top,
+			SizeMode = PictureBoxSizeMode.Zoom,
+			BackColor = sage,
+			Margin = new Padding(0, 0, 0, 6)
+		};
+		Image? logo = LoadBrand("moss-logo.png");
+		if (logo != null)
+		{
+			brand.Image = logo;
+			brand.Disposed += delegate
+			{
+				logo.Dispose();
+			};
+		}
+		else
+		{
+			brand.Dispose();
+		}		FlowLayoutPanel flowLayoutPanel = new FlowLayoutPanel
 		{
 			Dock = DockStyle.Fill,
 			FlowDirection = FlowDirection.TopDown,
 			WrapContents = false,
 			Padding = new Padding(0, 22, 0, 0)
 		};
-		string[] array = new string[7] { "Pet", "Notebook", "Customize", "Sounds", "Behavior", "Settings", "Advanced" };
+		string[] array = new string[8] { "Pet", "Notebook", "Customize", "Sounds", "Behavior", "Testing", "Settings", "Advanced" };
 		foreach (string name in array)
 		{
 			Button button = new Button
@@ -103,6 +130,11 @@ internal sealed class SettingsForm : Form
 		}
 		panel.Controls.Add(flowLayoutPanel);
 		panel.Controls.Add(value);
+		if (brand.Image != null)
+		{
+			panel.Controls.Add(brand);
+			panel.Controls.SetChildIndex(brand, 0);
+		}
 		base.Controls.Add(content);
 		base.Controls.Add(panel);
 		timer.Tick += delegate
@@ -442,6 +474,27 @@ internal sealed class SettingsForm : Form
 				break;
 			}
 			TextBlock("A small life on your desktop. No chores, no accounts, no need to keep it entertained.");
+			PictureBox banner = new PictureBox
+			{
+				Width = 440,
+				Height = 147,
+				SizeMode = PictureBoxSizeMode.Zoom,
+				Margin = new Padding(0, 0, 0, 14)
+			};
+			Image? art = LoadBrand("moss-banner.png");
+			if (art != null)
+			{
+				banner.Image = art;
+				banner.Disposed += delegate
+				{
+					art.Dispose();
+				};
+				list.Controls.Add(banner);
+			}
+			else
+			{
+				banner.Dispose();
+			}
 			ShowPortrait(app.Character);
 			TextBox petName = new TextBox
 			{
@@ -617,8 +670,93 @@ internal sealed class SettingsForm : Form
 			});
 			break;
 		case 4:
-		case 7:
 			break;
+		case 7:
+			if (!(text == "Testing"))
+			{
+				break;
+			}
+			TextBlock("Try every animation live on your pet, or run a full demo. Same systems autonomy uses.");
+			TextBox animFilter = new TextBox
+			{
+				Width = 280,
+				Margin = new Padding(0, 0, 0, 6)
+			};
+			list.Controls.Add(animFilter);
+			ListBox animList = new ListBox
+			{
+				Width = 440,
+				Height = 150,
+				Margin = new Padding(0, 0, 0, 8)
+			};
+			Action refreshAnims = delegate
+			{
+				string query = animFilter.Text.Trim().ToLowerInvariant();
+				animList.Items.Clear();
+				foreach (string motionName in Enum.GetNames<Motion>().Where((string n) => n.ToLowerInvariant().Contains(query)))
+				{
+					animList.Items.Add(motionName);
+				}
+			};
+			animFilter.TextChanged += delegate
+			{
+				refreshAnims();
+			};
+			list.Controls.Add(animList);
+			refreshAnims();
+			Label playStatus = new Label
+			{
+				AutoSize = true,
+				MaximumSize = new Size(455, 0),
+				Margin = new Padding(0, 2, 0, 10)
+			};
+			Button("Play animation", delegate
+			{
+				if (animList.SelectedItem is string selected && Enum.TryParse<Motion>(selected, out Motion motion))
+				{
+					app.AnimationPreview = motion;
+					playStatus.Text = "Playing " + selected + " on your pet.";
+				}
+				else
+				{
+					playStatus.Text = "Pick an animation first.";
+				}
+			});
+			Button("Stop", delegate
+			{
+				app.AnimationPreview = null;
+				app.AnimationPreviewPaused = false;
+				playStatus.Text = "Back to normal.";
+			});
+			Button("Test full climb", delegate
+			{
+				playStatus.Text = app.LabClimbNearest() ? "Climbing — watch the screen edge." : "No edge in reach.";
+			});
+			Button("Build house now", delegate
+			{
+				playStatus.Text = app.LabBuild(StructureKind.House) ? "Building — watch it gather and hammer." : "No site or busy.";
+			});
+			list.Controls.Add(playStatus);
+			TextBlock("More: tray → Feature Lab… has every trigger, exact values, the event stream and the world inspector.");
+			break;
+		}
+	}
+
+	private Image? LoadBrand(string file)
+	{
+		try
+		{
+			string path = Path.Combine(AppContext.BaseDirectory, "assets", "branding", file);
+			if (!File.Exists(path))
+			{
+				return null;
+			}
+			using FileStream stream = File.OpenRead(path);
+			return new Bitmap(Image.FromStream(stream));
+		}
+		catch
+		{
+			return null;
 		}
 	}
 

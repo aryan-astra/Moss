@@ -6,6 +6,7 @@ using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -161,6 +162,26 @@ internal sealed class PetApplication : ApplicationContext
 				return Config.Profile.Name;
 			}
 			return Character.Name;
+		}
+	}
+
+	public static string ProductVersion
+	{
+		get
+		{
+			try
+			{
+				string? version = typeof(PetApplication).Assembly.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+				if (!string.IsNullOrWhiteSpace(version))
+				{
+					int plus = version.IndexOf('+');
+					return plus > 0 ? version.Substring(0, plus) : version;
+				}
+			}
+			catch
+			{
+			}
+			return "1.0.0";
 		}
 	}
 
@@ -436,6 +457,10 @@ internal sealed class PetApplication : ApplicationContext
 		{
 			menu.Items[0].Dispose();
 		}
+		menu.Items.Add(new ToolStripMenuItem("Moss " + ProductVersion + " · " + PetName)
+		{
+			Enabled = false
+		});
 		menu.Items.Add("Show Moss / recover position", null, delegate
 		{
 			Reset();
