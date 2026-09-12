@@ -1,0 +1,26 @@
+MOSS 1.3.0 — MUSIC AND PLAY
+
+Exit the older Moss from its tray menu. Extract ALL files and run Moss.exe.
+No separate .NET runtime installation is required.
+
+New: browser/default-output level fallback; clickable music card with optional
+song details/artwork/timeline; species CD/cassette/radio/headphones; music notes,
+rare optional compliments, petting hearts, less compressed dance and real hops;
+a gentler movement/shock-based twig grip and body lift; temporary football play;
+explicit Save changes alongside immediate preference persistence.
+
+Output-level fallback is not recording or song recognition. It may react to
+other sound and may miss non-default/exclusive/very quiet output. Metadata needs
+a cooperating Windows session. The music card never invents missing details.
+
+95 Core tests and four Wine component checks passed. Renderer evidence includes
+42 poses and a simulated-input motion exercise. Native Windows audio/device,
+mixed-DPI, scheduler and long-run performance acceptance remains unverified.
+
+Read docs/REVISION-1.3.md, docs/TECHNICAL-ARCHITECTURE.md and
+ docs/BRAINS-RESEARCH.md. Neural import/vision are researched proposals, not shipped
+features. The full premium-art/100-moment master brief is not claimed complete.
+
+Existing notes remain in %LOCALAPPDATA%\Moss\notebook. Preserve this folder.
+After moving the executable, update enabled startup/closed-app reminder paths
+by toggling those settings off/on.

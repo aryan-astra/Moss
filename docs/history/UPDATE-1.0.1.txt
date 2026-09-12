@@ -1,0 +1,24 @@
+MOSS 1.0.1 — TRAY-ONLY VISIBILITY FIX
+
+IMPORTANT: Exit the OLD running Moss through its tray menu before starting
+this updated EXE. Starting a new executable does not replace code in an
+already-running old process.
+
+1. Right-click the old Moss tray icon > Exit Moss.
+2. Extract this entire ZIP into a folder. Keep all DLLs and characters together.
+3. Double-click the new Moss.exe.
+
+No settings deletion, reinstall of .NET, or administrator access is needed.
+If you moved the app and use autostart, toggle startup off/on to update its path.
+
+Fixed: normal Windows shell state 5 was mistaken for presentation mode,
+causing the default Hide policy to suppress the creature on the desktop.
+
+New recovery: tray > Show Moss / recover position.
+This reveals the pet for 30 seconds, then resumes automatic fullscreen and
+presentation policies. Explicit Hide and quiet mode always take precedence.
+The tray status line tells you why Moss is visible or hidden.
+
+The build has 46 passing automated tests, including nine visibility regressions.
+Windows desktop execution remains unverified in the Linux build environment.
+See docs/VERIFICATION.md for the complete, honest verification boundary.

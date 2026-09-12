@@ -1,0 +1,29 @@
+Moss 1.3.0 — distribution/evidence audit, 12 September 2026
+
+Main Release build: 0 warnings, 0 errors.
+Core regressions: 95 passed, 0 failed.
+Fresh source-ZIP extraction into a separate directory: Release rebuild 0 warnings/errors; 95 passed, 0 failed.
+Core timing output is a Linux model-only microprofile, not Windows whole-process performance.
+
+Renderer: 42 production-renderer pose checks; 384-frame seven-rig motion exercise.
+The video uses simulated media input, not Spotify/Chrome, and is not beat-sync evidence.
+
+Windows components under Wine: 4 passed, 0 failed.
+Includes 100 dropdown-parenting cycles; RichEdit Unicode/formatting round-trip;
+2,400 layered-window submissions over 120 DIB lifetime cycles; safe meter unavailability/revocation.
+No audio endpoint is available in the Wine host. Peak-meter success on a real device was NOT tested.
+
+Application under Wine: launch, music card, metadata consent persisted, explicit settings save,
+football launch/overlay, graceful exactly-once exit. No frame/UI/fatal errors logged in final short run.
+Wine reports unsupported GSMTC/capture exclusion; that is not Windows hardware acceptance.
+Prior notebook storage regressions remain; earlier-version notebook Wine evidence is historical.
+
+Self-contained x64 runtime packaged. PE AMD64 machine and GUI subsystem checked.
+Seven character packs and required runtime/WinForms/WinRT/WASAPI files checked.
+Production System.Drawing remains .NET 8; Linux-only test dependency is not substituted.
+Final ZIPs receive CRC checks; SHA-256 digests accompany application/source/research/architecture.
+Source excludes bin/obj, runtime output, caches and Git internals.
+
+Native Chrome/Spotify/output routing, exclusive devices, mixed DPI, scheduler/notifications,
+long-run GDI/private-memory behavior and full master-spec acceptance remain unverified.
+Neural inference/import and visual recognition are research proposals, NOT shipped features.

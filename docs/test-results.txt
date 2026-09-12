@@ -1,0 +1,97 @@
+PASS  DPI round trips: 100,125,150,175,200 and arbitrary
+PASS  negative-coordinate rectangle geometry
+PASS  multi-monitor nearest and scale
+PASS  occlusion splits ledges
+PASS  occlusion overlap and complete cover
+PASS  gravity accelerates free body
+PASS  swept landing prevents platform tunneling
+PASS  fall settles stably on floor
+PASS  floor friction dissipates momentum
+PASS  jump detaches support and rises
+PASS  closed support causes a real fall
+PASS  moving window carries attached body
+PASS  occlusion does not move a supporting window
+PASS  grabbing uses a spring instead of teleportation
+PASS  release preserves throw momentum
+PASS  impact event and rebound are physical
+PASS  monitor removal recovers lost position
+PASS  mixed DPI physics stays in physical pixel space
+PASS  NaN physical state recovers
+PASS  music utilities respond to actual state
+PASS  personality influences utility
+PASS  petting changes mood and attention
+PASS  notification influences curiosity without contents
+PASS  media state transitions and track changes
+PASS  authored content has every animation
+PASS  reject unknown rig and package version
+PASS  reject unsafe palette / missing clip / nonfinite values
+PASS  animation blends rather than snapping
+PASS  one-shot interruption and thrown hold
+PASS  animation markers fire on crossings
+PASS  configuration round-trip and atomic replace
+PASS  invalid configuration is rejected
+PASS  bounded randomized simulation: 360,000 fixed steps
+PASS  rhythm: silence produces no rhythmic accents
+PASS  rhythm: onset responds to audio energy and obeys refractory interval
+PASS  sound package bounds protect loudness
+PASS  notification reaction is distinct from petting
+PASS  visibility: normal Windows state 5 permits rendering with default settings
+PASS  visibility: only shell state 4 means presentation
+PASS  visibility: D3D state 3 follows fullscreen, not presentation policy
+PASS  visibility: failed shell queries do not hide normal desktop
+PASS  visibility: default presentation and fullscreen still hide
+PASS  visibility: explicit reveal temporarily overrides automatic policies
+PASS  visibility: explicit hide and quiet take precedence over reveal
+PASS  visibility: render failure is distinguished from policy hiding
+PASS  visibility: calm policy does not hide the pet
+PASS  commands: compact timer and compound duration
+PASS  commands: natural duration variants
+PASS  commands: tomorrow and weekdays
+PASS  commands: alarm rolls into next day
+PASS  commands: unspecified meridiem explicitly uses 24-hour time
+PASS  commands: invalid or overflowing durations do not schedule
+PASS  commands: DST ambiguity requires user correction
+PASS  Markdown: real headings, emphasis, lists, quotes and code
+PASS  Markdown: unsafe URL is not an executable link
+PASS  notes: independent storage, backup and corruption recovery
+PASS  notes: explicit archive retains document
+PASS  reminders: pending deadlines survive serialization
+PASS  pet profiles: names and independent sizes persist
+PASS  content: all seven authored species load
+PASS  petting: mere entry and one-direction motion do not count
+PASS  petting: repeated head rubbing counts
+PASS  events: bounded local stream
+PASS  prop: strong pull detaches with a physical velocity
+PASS  prop: released object falls and returns near the pet
+PASS  media: playing session beats paused current session
+PASS  media: current playing wins, previous playing stabilizes selection
+PASS  media: empty sessions and paused fallback
+PASS  music: every grounded seed reacts without random cooldown delay
+PASS  music: pause ends dancing and calm suppresses dancing
+PASS  gait: distance not clock drives foot phase
+PASS  gait: stance stays grounded and swing rises
+PASS  arm IK: bounded links across 10000 targets
+PASS  notes: old plain notes load without rich text
+PASS  notes: plain and rich content round-trip independently
+PASS  notes: oversized rich text is rejected
+PASS  toy: loss and recovery have persistent emotional state
+PASS  memory: state survives serialization and immediate recall
+PASS  memory: absence is rest, not a neglect penalty
+PASS  memory: unsafe serialized state is rejected
+PASS  dance: weight shift reaches both sides without phase-wrap bias
+PASS  notes: encoded size limit cannot overwrite a readable document
+PASS  audio fallback: silence and a short click do not activate
+PASS  audio fallback: sustained sound activates, silence releases
+PASS  audio fallback: invalid levels never activate
+PASS  dance: body proportions stay within five percent
+PASS  petting: visible affection persists and expires
+PASS  music: occasional hop is real vertical motion
+PASS  music: reduced motion prevents automatic dance hops
+PASS  grip: slow travel beyond old distance cutoff stays held
+PASS  grip: repeated violent reversals release once
+PASS  football: roll is physical and lifetime is bounded
+PASS  football: mixed-scale bounded simulation
+PASS  grip: slow upward lift carries body without distance release
+PASS  calm: autonomous play never injects a jump
+CORE PROFILE: 120000 fixed steps in 33.90 ms; 0.000283 ms/step. Linux, no renderer/Windows APIs.
+RESULT: 95 passed, 0 failed

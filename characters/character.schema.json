@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Moss character format 1",
+  "type": "object",
+  "properties": {
+    "formatVersion": {
+      "const": 1
+    },
+    "rig": {
+      "const": "bean-1"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    },
+    "body": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "belly": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "ink": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "accent": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "width": {
+      "type": "number",
+      "minimum": 40,
+      "maximum": 90
+    },
+    "height": {
+      "type": "number",
+      "minimum": 40,
+      "maximum": 100
+    },
+    "earLength": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 35
+    },
+    "headphones": {
+      "type": "boolean"
+    },
+    "sound": {
+      "type": "object",
+      "properties": {
+        "frequency": {
+          "type": "number",
+          "minimum": 100,
+          "maximum": 2000
+        },
+        "decay": {
+          "type": "number",
+          "minimum": 20,
+          "maximum": 150
+        },
+        "volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.15
+        }
+      }
+    },
+    "personality": {
+      "type": "object",
+      "properties": {
+        "curiosity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "playfulness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "sociability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "calmness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "animations": {
+      "type": "object",
+      "maxProperties": 40,
+      "required": [
+        "Idle",
+        "Walking",
+        "Running",
+        "Jumping",
+        "Falling",
+        "Climbing",
+        "Sitting",
+        "Sleeping",
+        "Waking",
+        "Looking",
+        "Reacting",
+        "Dancing",
+        "Petted",
+        "Grabbed",
+        "Held",
+        "Thrown",
+        "Airborne",
+        "Impact",
+        "Recovery",
+        "Startled",
+        "Hiding",
+        "Investigating",
+        "Celebrating"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "rate": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 30
+          },
+          "bob": {
+            "type": "number",
+            "minimum": -30,
+            "maximum": 30
+          },
+          "lean": {
+            "type": "number",
+            "minimum": -30,
+            "maximum": 30
+          },
+          "crouch": {
+            "type": "number",
+            "minimum": -0.3,
+            "maximum": 0.65
+          },
+          "eyes": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "ears": {
+            "type": "number",
+            "minimum": -30,
+            "maximum": 30
+          },
+          "arms": {
+            "type": "number",
+            "minimum": -30,
+            "maximum": 30
+          },
+          "duration": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 30
+          },
+          "loop": {
+            "type": "boolean"
+          },
+          "markers": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      }
+    },
+    "species": {
+      "enum": [
+        "bean",
+        "cat",
+        "dog",
+        "bird",
+        "octopus",
+        "rabbit",
+        "penguin"
+      ]
+    },
+    "paper": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "musicProp": {
+      "enum": [
+        "headphones",
+        "radio",
+        "turntable",
+        "cassette",
+        "cd"
+      ]
+    }
+  }
+}

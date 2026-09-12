@@ -1,0 +1,6 @@
+Host: Wine on Linux/Xvfb; no usable output device. Not native Windows acceptance.
+PASS parenting a dropdown never changes its selected setting
+PASS native RichEdit plain text and formatting round-trip
+PASS persistent DIB present, resize and deterministic disposal
+PASS output meter unavailability and repeated revocation are safe
+RESULT: 4 passed, 0 failed. Host environment must be recorded separately.

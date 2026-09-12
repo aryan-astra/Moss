@@ -1,0 +1,4 @@
+PASS parenting a dropdown never changes its selected setting
+PASS native RichEdit plain text and formatting round-trip
+PASS persistent DIB present, resize and deterministic disposal
+RESULT: 3 passed, 0 failed. Host environment must be recorded separately.
