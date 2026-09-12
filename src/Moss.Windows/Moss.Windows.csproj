@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Reconstructed from the shipped Moss 1.0.0 assembly (see
-       RECONSTRUCTED-SOURCE.md). Absolute machine paths replaced with
+  <!-- Reconstructed from the shipped Moss assembly (see README.md,
+       "Source provenance"). Absolute machine paths replaced with
        NuGet; Windows SDK projections resolve from the target framework. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>

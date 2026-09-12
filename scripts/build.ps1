@@ -35,11 +35,15 @@ if ($LASTEXITCODE -ne 0) { throw 'portable publish failed' }
 dotnet publish src/Moss.Windows -c $Configuration -r $Runtime --self-contained true -p:PublishSingleFile=true -p:DebugType=None -o $single
 if ($LASTEXITCODE -ne 0) { throw 'single-file publish failed' }
 
-# Portable distribution: published runtime + content + docs.
+# Portable distribution: published runtime + content + docs (verification
+# media under docs/evidence stays in the repository only).
 Copy-Item (Join-Path $portable '*') $dist -Recurse -Force
-foreach ($item in @('characters', 'README.md', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'docs', 'licenses', 'uninstall-portable.ps1')) {
+foreach ($item in @('characters', 'README.md', 'LICENSE', 'licenses', 'uninstall-portable.ps1')) {
 	Copy-Item (Join-Path $root $item) $dist -Recurse -Force
 }
+$docsDist = Join-Path $dist 'docs'
+New-Item -ItemType Directory -Path $docsDist -Force | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $root 'docs') | Where-Object { $_.Name -ne 'evidence' } | ForEach-Object { Copy-Item $_.FullName $docsDist -Recurse -Force }
 
 $zip = Join-Path $artifacts "Moss-$version-windows-x64.zip"
 Compress-Archive (Join-Path $dist '*') $zip -Force

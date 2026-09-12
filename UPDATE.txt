@@ -17,8 +17,8 @@ a cooperating Windows session. The music card never invents missing details.
 42 poses and a simulated-input motion exercise. Native Windows audio/device,
 mixed-DPI, scheduler and long-run performance acceptance remains unverified.
 
-Read docs/REVISION-1.3.md, docs/TECHNICAL-ARCHITECTURE.md and
- docs/BRAINS-RESEARCH.md. Neural import/vision are researched proposals, not shipped
+Read README.md for the current guide, architecture snapshot and research
+ status. Neural import/vision are researched proposals, not shipped
 features. The full premium-art/100-moment master brief is not claimed complete.
 
 Existing notes remain in %LOCALAPPDATA%\Moss\notebook. Preserve this folder.

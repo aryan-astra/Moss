@@ -1,16 +1,16 @@
 # Moss
-## A small life on your desktop — revision 1.3.0
+## A small life on your desktop — version 1.0.0
 
 Moss is a local Windows desktop companion: one creature inhabits window ledges and the taskbar, responds physically to grabbing and throwing, notices music, and carries a little toy alongside a notebook.
 
-**Read the delivery boundary:** this is an expanded, buildable implementation—not a verified fulfillment of the master production specification. It includes seven procedural species, but not seven independently authored premium animation libraries or the requested 100+ meaningful cinematic interactions. Screen-edge construction, general navigation planning, full emotional/object stories and native Windows acceptance remain incomplete. The app was cross-compiled on Linux and exercised under Wine; no native Windows machine was available. [ACCEPTANCE.md](docs/ACCEPTANCE.md) is the authoritative, explicit status report. No “fully finished” claim is made.
+**Read the delivery boundary:** this is an expanded, buildable implementation—not a verified fulfillment of the master production specification. It includes seven procedural species, but not seven independently authored premium animation libraries or the requested 100+ meaningful cinematic interactions. Screen-edge construction, general navigation planning, full emotional/object stories and native Windows acceptance remain incomplete. Earlier builds were cross-compiled on Linux and exercised under Wine; no native Windows machine was available for certification. No “fully finished” claim is made.
 
 ## Download, update and run
 
-Target: **Windows 10 build 19041+ / Windows 11, x64**. This targets those APIs; it is not a statement that Microsoft still supports every historical Windows release. ARM64 publishing is configured but not tested.
+Target: **Windows 10 build 19041+ / Windows 11, x64**. This targets those APIs; it is not a statement that Microsoft still supports every historical Windows release.
 
 1. If an older Moss is running, **right-click its tray icon → Exit Moss**. Launching a new EXE cannot replace code in an old running process.
-2. Extract **all of `Moss-1.3.0-windows-x64.zip`** into a local folder you intend to keep. Do not launch from inside the ZIP.
+2. Download `Moss-1.0.0-windows-x64.zip` from the [Releases page](https://github.com/aryan-astra/Moss/releases) and extract **all of it** into a local folder you intend to keep. Do not launch from inside the ZIP. (`Moss-1.0.0-windows-x64.exe` is the same single-file build for direct download.)
 3. Double-click **Moss.exe**. A separate application shell opens on ordinary launches. Closing the shell leaves the pet alive. Quiet `--startup` launches do not open the shell.
 4. No administrator access or separate .NET runtime is required. The portable archive includes the runtime, character packs and licenses. Allow roughly 200 MB of extracted space; real Windows CPU/GPU/RAM budgets have not been validated.
 
@@ -18,11 +18,9 @@ The executable is unsigned. Respect Windows/organization security policy; do not
 
 The earlier tray-only bug remains fixed: normal shell notification state 5 is **not** presentation mode. The tray status explains why the creature is visible or hidden. **Show Moss / recover position** performs explicit recovery and a 30-second reveal; automatic fullscreen safeguards resume afterward. Hide and quiet mode always take precedence over that reveal. Launching a second updated instance requests recovery/Settings rather than creating another creature.
 
-## What changed in 1.3
+## About version 1.0.0
 
-Browser output-level fallback, a clickable music card, species CD/cassette/radio/headphone visuals, floating notes and optional rare compliments, proportion-preserving dance with physical hops, petting hearts, a force/movement-based twig grip, temporary football play and an explicit Save changes action.
-
-[Revision and evidence](docs/REVISION-1.3.md) · [Detailed architecture and every-file inventory](docs/TECHNICAL-ARCHITECTURE.md) · [Small-brain research and safe-import proposal](docs/BRAINS-RESEARCH.md)
+Version 1.0.0 is the first release built automatically from source on GitHub: music-aware dancing with a clickable music card, species CD/cassette/radio/headphone visuals, floating notes and optional rare compliments, proportion-preserving dance with physical hops, petting hearts, a force/movement-based twig grip, temporary football play and an explicit Save changes action.
 
 ## The shell
 
@@ -53,7 +51,7 @@ These are original procedural vector designs sharing an engine and base state se
 ## Touch and play
 
 - Move the cursor nearby: gaze and curiosity can respond.
-- Rub back and forth over the head: reversal/distance detection recognizes petting. A single entry or one-direction mouse move is not automatically a pet.
+- Rub back and forth over the head: reversal/distance detection recognizes petting, and recognized petting shows hearts. A single entry or one-direction mouse move is not automatically a pet.
 - Hold the left button on the creature and move: a damped spring follows your hand. Release to retain physical momentum. Hold still before releasing for a gentler drop.
 - Grab the small twig toy: the creature initially resists through a spring constraint. Slow displacement remains attached; sufficiently fast pulling or repeated shocks can detach it; release to throw. The pet can seek and recover a settled nearby object. Retrieval across arbitrary disconnected surfaces is not guaranteed.
 - Click a visible music device while dancing for the music card, or use tray → Now playing. Permit song details if you want title, artwork and a supplied timeline.
@@ -91,7 +89,7 @@ Type a command on its own line, place the caret on it (or select it), then press
 @alarm 7:30am
 ```
 
-A preview shows the exact date, clock time, offset and message. **Nothing is scheduled until you confirm.** Editing a command does not automatically change a previously created reminder. Manage existing reminders from the Notebook area of the shell.
+A preview shows the exact date, clock time, offset and message. **Nothing is scheduled until you confirm.** Editing a command does not automatically change a previously created reminder. Manage existing reminders from the Notebook area of the shell. Rejected lines explain the expected form; fix the line rather than guessing.
 
 Times without AM/PM use the **24-hour clock**, explicitly disclosed in confirmation. Past clock times roll forward. Durations support seconds/minutes/hours up to one year. Ambiguous/invalid daylight-saving wall times are rejected with a request to use a duration. This is a bounded grammar, not an arbitrary-natural-language AI parser.
 
@@ -117,7 +115,7 @@ Opt-in speaker-output analysis uses local WASAPI loopback, discards samples and 
 
 Defaults retain cursor/window/foreground awareness, media state and default-output level fallback, while identity/title reading, metadata, speaker analysis and incoming-notification observation are off. There is no telemetry, account, cloud dependency, screenshot capture, clipboard access, file scanning or browser scraping. Notebook files are user-authored local content, not scanned personal files. Logs omit note bodies, reminder text, media/window titles and incoming notification text.
 
-Incoming notification observation still requires a signed installed MSIX with `userNotificationListener` capability and user access. **The portable edition cannot obtain it.** The source supplies an MSIX manifest/packaging script, but no signed package or native permission test is supplied. It is not represented as a working portable capability.
+Incoming notification observation requires a signed installed MSIX with `userNotificationListener` capability and user access. **The portable edition cannot obtain it**, and no signed package is supplied. It is not represented as a working portable capability.
 
 Fullscreen and Windows-reported presentation default to Hide; Calm and Stay remain configurable. Universal screen-sharing detection is not available. Capture exclusion is best-effort and depends on the sharing software. Use quiet mode for deliberate non-interference before sharing. The requested Corner/Minimal/Click-through automatic policy variants are not all implemented.
 
@@ -145,7 +143,7 @@ A high-resolution waitable timer coalesces UI callbacks; it does not guarantee v
 - `notebook\reminders\<id>.json`: independent reminder/timer records.
 - `.bak`: previous document revision; `.corrupt-*`: preserved damaged originals; `.deleted`: explicitly archived notes.
 - `characters`: imported data-only packs.
-- `moss.jsonl` / `.1`: rotated structured logs.
+- `moss.jsonl` / `.1`: rotated structured logs (note bodies, reminder text, media/window titles and notification content are intentionally excluded).
 
 Document writes flush a temporary file before atomic replacement. Corruption recovery preserves the last good backup and the damaged original. Unreadable files are retained and warnings surfaced. **Back up this directory for your own long-term protection; local backups on the same disk do not protect against disk loss.**
 
@@ -159,15 +157,36 @@ Startup is optional under Pet. The portable edition uses the current user's Run 
 
 To uninstall: exit, run `uninstall-portable.ps1` if you enabled startup/closed-app reminders, and delete the app folder. Local notes are retained. Only use `-DeleteLocalData` if you explicitly want notes, reminders, settings, imported content and logs removed too. Windows may restrict task-removal commands by policy; do not bypass organization controls.
 
+## Custom characters
+
+A character is a folder containing **`character.json`** — inspectable numeric data for the `bean-1` procedural rig, never executable code. Copy `characters/moss/character.json` to start editing, then import it from Settings → Character. Imports are validated and reserialized into `%LOCALAPPDATA%\Moss\characters\<random-id>\character.json`. `characters/character.schema.json` documents the constraints; the in-app validator is authoritative.
+
+Key bounds: `formatVersion` is `1`; `rig` is `"bean-1"`; `name` is nonblank, up to 40 characters; colors are exactly `#RRGGBB`; `width` 40–90, `height` 40–100, `earLength` 0–35; `species` is one of `bean`, `cat`, `dog`, `bird`, `octopus`, `rabbit`, `penguin`; `musicProp` is one of `headphones`, `radio`, `turntable`, `cassette`, `cd`; `animations` maps the 23 Motion names (Idle … Celebrating) to clips with bounded rate/bob/lean/crouch/eyes/ears/arms/duration values. Files over 256 KiB, unknown rigs/species, non-finite numbers and missing clips are rejected. Unknown extra properties are ignored.
+
+The original rig parameters, icon drawings and sound design are MIT licensed with the project. Creators may license newly authored content as they choose; add a human-readable `LICENSE` beside the JSON.
+
+## Troubleshooting
+
+- **Tray only:** exit old versions before launching this one; inspect the tray visibility reason and use Show / recover. Actual fullscreen still hides by default. In remote sharing tools, capture exclusion can intentionally omit the pet.
+- **Notes say not saved:** keep the editor open, select and copy your text to a safe local document, and check disk space/permissions. Exit is blocked on an unsaved-note failure.
+- **A command is rejected:** use the exact forms above, place the caret on the line and confirm the preview. Hours without AM/PM are 24-hour; ambiguous daylight-saving times must be re-entered as durations.
+- **Reminder not delivered while closed:** check opt-in, scheduler status, stable EXE path, Windows user/session availability and task policy. Missed deadlines catch up when the app next runs.
+- **Timer not showing a live countdown:** use the Notebook area of the application shell, not a typed command line in the editor.
+- **Music not noticed:** confirm a supported Windows media session and permission; metadata is not required for state-aware behavior.
+- **Notification observation unavailable:** portable identity is insufficient; this requires the optional signed MSIX installation and Windows permission.
+- **A window is not terrain:** minimized/protected/cloaked/tool surfaces and insufficient exposed clearance are excluded.
+- **Unexpected display position:** reset the pet; the actual mixed-DPI hardware matrix remains unverified.
+- **Resources seem high:** Battery mode, reduced motion, audio analysis off, or Hide; inspect Advanced metrics. Do not mistake a target frame rate for a measured guarantee.
+
 ## Build from source
 
-Install the .NET 8 SDK, extract `Moss-1.3.0-source.zip`, and run from the `Moss` directory:
+Install the .NET 8 SDK, clone this repository, and run from the repository root:
 
 ```powershell
 ./scripts/build.ps1
 ```
 
-This restores pinned dependencies, builds, runs the regression harness and publishes a self-contained Windows archive. Initial NuGet restore needs internet. No runtime internet connection is required. `Moss.sln` can also be opened in Visual Studio. [BUILD.md](docs/BUILD.md) contains individual commands, cross-compilation notes and optional MSIX signing.
+This restores NuGet dependencies, builds, runs the regression harness, publishes the self-contained Windows x64 application plus a single-file `Moss.exe`, and packages the portable ZIP with checksums. Initial NuGet restore needs internet. No runtime internet connection is required. `Moss.sln` can also be opened in Visual Studio. The script is the same process GitHub Actions runs; MSIX packaging/signing is intentionally out of scope (no signing credentials exist).
 
 ### Releases
 
@@ -178,22 +197,31 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-The workflow restores, builds, runs the regression harness, publishes the portable Windows x64 distribution plus a single-file `Moss.exe`, and attaches the ZIP, the EXE and checksums to the GitHub Release. See [RECONSTRUCTED-SOURCE.md](RECONSTRUCTED-SOURCE.md) for how the current source tree was recovered.
+The tag must match `<Version>` in `Directory.Build.props`. The workflow restores, builds, runs the regression harness, publishes the portable Windows x64 distribution plus a single-file `Moss.exe`, and attaches the ZIP, the EXE and checksums to the GitHub Release.
 
-## Troubleshooting
+## How it works
 
-- **Tray only:** exit old versions before launching this one; inspect the tray visibility reason and use Show / recover. Actual fullscreen still hides by default. In remote sharing tools, capture exclusion can intentionally omit the pet.
-- **Notes say not saved:** keep the editor open, select and copy your text to a safe local document, and check disk space/permissions. Exit is blocked on an unsaved-note failure.
-- **Reminder not delivered while closed:** check opt-in, scheduler status, stable EXE path, Windows user/session availability and task policy. Missed deadlines catch up when the app next runs.
-- **Timer not showing a live countdown:** use the Notebook area of the application shell, not a typed command line in the editor.
-- **Music not noticed:** confirm a supported Windows media session and permission; metadata is not required for state-aware behavior.
-- **Notification observation unavailable:** portable identity is insufficient; this requires the optional signed MSIX installation and Windows permission.
-- **A window is not terrain:** minimized/protected/cloaked/tool surfaces and insufficient exposed clearance are excluded.
-- **Unexpected display position:** reset the pet; the actual mixed-DPI hardware matrix remains unverified.
-- **Resources seem high:** Battery mode, reduced motion, audio analysis off, or Hide; inspect Advanced metrics. Do not mistake a target frame rate for a measured guarantee.
+`src/Moss.Core` (portable `net8.0`) holds the simulation: world geometry in physical pixels, fixed-step creature physics (gravity, spring dragging, one-way ledge landing, support tracking), a utility-behavior controller, animation blending over 23 motion states, props (twig, football), settings/content validation, note/reminder storage with a bounded command grammar, and media-selection/level-hysteresis logic. It depends only on Markdig.
 
-## Documentation
+`src/Moss.Windows` (`net8.0-windows`, WinForms) owns the process: tray lifecycle, Win32/DWM world observation, layered-window GDI+ rendering, the native note editor, preferences, music card, GSMTC/WASAPI media observation, Task Scheduler reminders, and diagnostics. A high-resolution waitable timer paces UI-thread ticks; simulation steps are fixed at 1/120 s.
 
-[User guide](docs/USER-GUIDE.md) · [Acceptance and limitations](docs/ACCEPTANCE.md) · [Research](docs/RESEARCH.md) · [Architecture additions](docs/EXPANDED-ARCHITECTURE.md) · [Build](docs/BUILD.md) · [Character format](docs/CHARACTERS.md) · [Tests](docs/test-results.txt) · [Licenses](THIRD-PARTY-NOTICES.md)
+`tests/Moss.Tests` is a small deterministic harness over `Moss.Core` (content validation, audio hysteresis, command grammar, version stamp). There is no chatbot, telemetry, account, cloud dependency, screenshot capture, microphone input, or plug-in execution anywhere in the tree.
+
+## Third-party software
+
+Moss's source, original procedural character, parameter animations, icon art and synthesized sound are covered by the root MIT `LICENSE`. No downloaded artwork, fonts or recordings are bundled. Segoe UI is requested from Windows, not redistributed.
+
+Runtime dependencies:
+
+- **.NET 8 / Windows Desktop runtime 8.0.31** — Microsoft and .NET contributors, MIT with component notices. The self-contained distribution includes the runtime. See `licenses/dotnet-runtime-LICENSE.txt`, `licenses/dotnet-desktop-LICENSE.txt` and the third-party notice files in `licenses/`.
+- **NAudio.Core and NAudio.Wasapi 2.2.1** — Mark Heath and contributors, MIT. Used for opt-in Windows speaker-output analysis. See `licenses/NAudio-MIT.txt`.
+- **Windows SDK .NET projection 10.0.19041.56 / WinRT.Runtime (CsWinRT)** — Microsoft, MIT. See `licenses/CsWinRT-LICENSE.txt`.
+- **Markdig 0.37.0** — Alexandre Mutel and contributors, BSD 2-Clause. Used for Markdown parsing in the core; it does not download images or execute embedded HTML. See `licenses/Markdig-LICENSE.txt`.
+
+Build-only tools: .NET 8 SDK (initial restore needs network; running Moss does not). Exact resolved package versions are pinned in each project's PackageReference; this file is not a security audit.
+
+## Source provenance
+
+The `src/` tree was recovered from the shipped portable binaries with ILSpy, whose original C# source was not in version control. It compiles cleanly, reproduces the shipped binaries to matching size, and the rebuilt application was smoke-tested. Only build hygiene changed versus raw decompiler output (NuGet references instead of absolute DLL paths, SDK-generated assembly info, one restored `using` alias, two restored fire-and-forget discards); no product behavior was altered. If the original source tree resurfaces, it supersedes this reconstruction.
 
 Moss is free, local and MIT licensed. There are no accounts, ads, subscriptions, AI requirements or payment systems.

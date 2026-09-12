@@ -21,4 +21,4 @@ The tray status line tells you why Moss is visible or hidden.
 
 The build has 46 passing automated tests, including nine visibility regressions.
 Windows desktop execution remains unverified in the Linux build environment.
-See docs/VERIFICATION.md for the complete, honest verification boundary.
+See README.md for the complete, honest verification boundary.

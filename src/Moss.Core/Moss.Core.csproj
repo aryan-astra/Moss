@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Reconstructed from the shipped Moss.Core 1.0.0 assembly (see
-       RECONSTRUCTED-SOURCE.md). Original project layout/names preserved
+  <!-- Reconstructed from the shipped Moss.Core assembly (see README.md,
+       "Source provenance"). Original project layout/names preserved
        where recoverable; absolute machine paths replaced with NuGet. -->
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
