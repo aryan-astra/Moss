@@ -1,0 +1,113 @@
+# Moss automated release.
+#
+# Trigger: push a tag named v<Version>, e.g. v1.3.0
+#   git tag v1.3.0
+#   git push origin v1.3.0
+#
+# The workflow restores, builds, tests, and publishes the portable
+# Windows x64 distribution from source, packages it as
+# Moss-<Version>-windows-x64.zip (+ .sha256 checksum), and attaches both
+# files to a GitHub Release titled "Moss <Version>".
+#
+# Version consistency is enforced, not assumed:
+#   1. The tag must have the form v1.<minor>.<patch> (releases are 1.x only).
+#   2. The tag must exactly match <Version> in Directory.Build.props,
+#      which is also the version stamped into the compiled Moss.exe.
+# Any mismatch fails the run before anything is built or published.
+#
+# The release is built from the compilable source tree (Moss.sln, src/,
+# tests/, scripts/) at the repository root. If that tree is absent the run
+# fails fast with an explicit message instead of a cryptic build error.
+
+name: release
+
+on:
+  push:
+    tags:
+      - 'v1.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Resolve and validate version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = '${{ github.ref_name }}'
+          if ($tag -notmatch '^v(1\.\d+\.\d+)$') {
+            throw "Refusing to release: tag '$tag' must have the form v1.<minor>.<patch> (e.g. v1.3.0)."
+          }
+          $number = $Matches[1]
+          [xml]$props = Get-Content -LiteralPath 'Directory.Build.props'
+          $declared = $props.SelectSingleNode('/Project/PropertyGroup/Version').InnerText.Trim()
+          if ($declared -ne $number) {
+            throw "Refusing to release: tag '$tag' does not match <Version>$declared</Version> in Directory.Build.props. Update the file or retag."
+          }
+          "number=$number" >> $env:GITHUB_OUTPUT
+
+      - name: Require source tree
+        shell: pwsh
+        run: |
+          if (-not (Test-Path -LiteralPath 'Moss.sln')) {
+            throw 'Moss.sln not found at the repository root. Push the Moss source tree first; releases are built from source, not from the checked-in portable copy.'
+          }
+
+      - name: Set up .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore Moss.sln
+
+      - name: Build
+        shell: pwsh
+        run: dotnet build Moss.sln -c Release --no-restore
+
+      - name: Test
+        shell: pwsh
+        run: dotnet run --project tests/Moss.Tests -c Release --no-build -- .
+
+      - name: Publish portable build
+        shell: pwsh
+        run: >
+          dotnet publish src/Moss.Windows -c Release -r win-x64
+          --self-contained true -p:PublishSingleFile=false -p:DebugType=None
+          -o artifacts/Moss-win-x64
+
+      - name: Package distribution
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $out = 'artifacts/Moss-win-x64'
+          foreach ($item in @('README.md', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'docs', 'licenses')) {
+            if (-not (Test-Path -LiteralPath $item)) { throw "Expected distribution item '$item' is missing." }
+          }
+          Copy-Item README.md,LICENSE,THIRD-PARTY-NOTICES.md $out
+          Copy-Item docs,licenses $out -Recurse
+          if (Test-Path -LiteralPath 'scripts/uninstall-portable.ps1') {
+            Copy-Item scripts/uninstall-portable.ps1 $out
+          }
+          $zip = "artifacts/Moss-${{ steps.version.outputs.number }}-windows-x64.zip"
+          if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip }
+          Compress-Archive "$out/*" $zip -Force
+          (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash | Out-File "$zip.sha256" -Encoding ascii
+
+      - name: Create GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = '${{ github.ref_name }}'
+          $number = '${{ steps.version.outputs.number }}'
+          $zip = "artifacts/Moss-$number-windows-x64.zip"
+          gh release create $tag $zip "$zip.sha256" --title "Moss $number" --notes "Portable Windows x64 build of Moss $number. See README.md and docs/USER-GUIDE.md inside the archive."
