@@ -1,8 +1,8 @@
 # Moss automated release.
 #
-# Trigger: push a tag named v<Version>, e.g. v1.0.0
-#   git tag v1.0.0
-#   git push origin v1.0.0
+# Trigger: push a tag named v<Version>, e.g. v1.2.0
+#   git tag v1.2.0
+#   git push origin v1.2.0
 #
 # The workflow checks out the tagged commit, runs scripts/build.ps1
 # (restore, build, test, dual publish, package), then creates a GitHub
@@ -62,7 +62,7 @@ jobs:
         run: |
           $tag = '${{ github.ref_name }}'
           if ($tag -notmatch '^v(1\.\d+\.\d+)$') {
-            throw "Refusing to release: tag '$tag' must have the form v1.<minor>.<patch> (e.g. v1.0.0)."
+            throw "Refusing to release: tag '$tag' must have the form v1.<minor>.<patch> (e.g. v1.2.0)."
           }
           $number = $Matches[1]
           [xml]$props = Get-Content -LiteralPath 'Directory.Build.props'

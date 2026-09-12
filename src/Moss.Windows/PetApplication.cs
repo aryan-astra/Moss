@@ -182,7 +182,7 @@ internal sealed class PetApplication : ApplicationContext
 			catch
 			{
 			}
-			return "1.0.0";
+			return "1.2.0";
 		}
 	}
 

@@ -20,7 +20,7 @@ Moss is a tiny companion that lives on your desktop. It perches on your window l
 
 ## Get going in a minute
 
-1. Grab `Moss-1.0.0-windows-x64.zip` from the [Releases page](https://github.com/aryan-astra/Moss/releases) and unzip it anywhere. One file more your style? `Moss-1.0.0-windows-x64.exe` is the same build, ready to run.
+1. Grab `Moss-1.2.0-windows-x64.zip` from the [Releases page](https://github.com/aryan-astra/Moss/releases) and unzip it anywhere. One file more your style? `Moss-1.2.0-windows-x64.exe` is the same build, ready to run.
 2. Double-click **Moss.exe**. Say hi.
 3. Drag it around. Rub its head. Right-click it. Open the **Notebook** and type `@timer 25m`, put the caret on the line, hit **Ctrl+Enter**.
 4. Done with it? Tray → **Exit Moss**. To remove it entirely, run `uninstall-portable.ps1` and delete the folder.

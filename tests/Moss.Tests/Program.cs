@@ -114,7 +114,7 @@ internal static class Program
 		Expect<FormatException>(() => NoteCommands.Parse("hello world", now, TimeZoneInfo.Utc), "plain text is not a command");
 
 		string? informational = typeof(Character).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-		Check(informational != null && (informational == "1.0.0" || informational.StartsWith("1.0.0+", StringComparison.Ordinal)), "core version stamp is 1.0.0 (got " + informational + ")");
+		Check(informational != null && (informational == "1.2.0" || informational.StartsWith("1.2.0+", StringComparison.Ordinal)), "core version stamp is 1.2.0 (got " + informational + ")");
 
 		FeatureChecks.Run();
 
