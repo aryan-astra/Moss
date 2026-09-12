@@ -216,6 +216,22 @@ internal sealed class SettingsForm : Form
 					{
 						app.Config.ReducedMotion = v;
 					});
+					Choice("Climbing", app.Config.Advanced.ClimbFrequency, delegate(Frequency v)
+					{
+						app.Config.Advanced.SetClimbing(v);
+					});
+					Choice("Construction", app.Config.Advanced.BuildFrequency, delegate(Frequency v)
+					{
+						app.Config.Advanced.SetConstruction(v);
+					});
+					Choice("Animations", app.Config.Advanced.AnimationStyle, delegate(AnimationStyle v)
+					{
+						app.Config.Advanced.SetAnimationStyle(v);
+					});
+					Choice("Pet mischief", app.Config.Advanced.MischiefLevel, delegate(MischiefLevel v)
+					{
+						app.Config.Advanced.SetMischief(v);
+					});
 				}
 				break;
 			case 'S':
@@ -357,6 +373,23 @@ internal sealed class SettingsForm : Form
 					Toggle("Use advanced personality override", app.Config.OverridePersonality, delegate(bool v)
 					{
 						app.Config.OverridePersonality = v;
+					});
+					Button("Open Feature Lab", delegate
+					{
+						app.OpenFeatureLab();
+					});
+					Choice("Timing preset", app.Config.Advanced.Preset, delegate(TimingPreset v)
+					{
+						app.Config.Advanced.ApplyPreset(v);
+					});
+					Button("Reset all advanced settings", delegate
+					{
+						if (MessageBox.Show(this, "Reset every advanced value to defaults? Notes and normal settings are untouched.", "Moss", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+						{
+							app.Config.Advanced = new AdvancedSettings();
+							app.Save();
+							Page(name);
+						}
 					});
 					Button("Open world inspector", delegate
 					{

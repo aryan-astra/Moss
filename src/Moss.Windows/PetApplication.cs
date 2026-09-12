@@ -103,6 +103,43 @@ internal sealed class PetApplication : ApplicationContext
 
 	public EventHub Events { get; } = new EventHub();
 
+	private FeatureLabForm? featureLab;
+
+	private readonly ConstructionController construction;
+
+	private ClimbPhase lastClimbPhase;
+
+	private BuildPhase lastBuildPhase;
+
+	private bool testMode;
+
+	public bool TestMode
+	{
+		get { return testMode; }
+		set
+		{
+			testMode = value;
+			Creature.AutonomyEnabled = !value;
+			if (value)
+			{
+				Paused = false;
+				Creature.Recover();
+			}
+		}
+	}
+
+	public bool BypassCooldowns { get; set; }
+
+	public Motion? AnimationPreview { get; set; }
+
+	public float AnimationPreviewSpeed { get; set; } = 1f;
+
+	public bool AnimationPreviewPaused { get; set; }
+
+	public bool AnimationPreviewLoop { get; set; }
+
+	public ConstructionController ConstructionView => construction;
+
 	private string ActiveCharacterFile
 	{
 		get
@@ -184,6 +221,7 @@ internal sealed class PetApplication : ApplicationContext
 			Config.Visible = true;
 		}
 		Config.PetScale = Config.Profile.Size;
+		Creature.Species = Character.Species;
 		Documents = new DocumentStore(Path.Combine(Paths.Root, "notebook"));
 		Reminders = new ReminderService(Documents, Config);
 		try
@@ -306,6 +344,7 @@ internal sealed class PetApplication : ApplicationContext
 		overlay.Configure(Config.Interaction, Config.ExcludeFromCapture);
 		timer = new FramePump(overlay);
 		props = new PropController(this);
+		construction = new ConstructionController(this);
 		timer.Interval = 22.0;
 		timer.Tick += delegate
 		{
@@ -430,6 +469,10 @@ internal sealed class PetApplication : ApplicationContext
 		menu.Items.Add("Open Moss…", null, delegate
 		{
 			OpenSettings();
+		});
+		menu.Items.Add("Feature Lab…", null, delegate
+		{
+			OpenFeatureLab();
 		});
 		menu.Items.Add("Now playing…", null, delegate
 		{
@@ -561,6 +604,7 @@ internal sealed class PetApplication : ApplicationContext
 			Character = character;
 			animator = new Animator(character);
 			Creature = new Creature();
+			Creature.Species = Character.Species;
 			WireCreature();
 			Creature.Reset(Observer.World);
 			Creature.Recall(Config.Profile.Memory, DateTimeOffset.UtcNow);
@@ -599,6 +643,22 @@ internal sealed class PetApplication : ApplicationContext
 			Notifications.Poll();
 			overlay.CheckCapture();
 			World world = Observer.World;
+			foreach (Surface s in Creature.Construction.Surfaces())
+			{
+				bool exists = false;
+				foreach (Surface other in world.Surfaces)
+				{
+					if (other.Id == s.Id)
+					{
+						exists = true;
+						break;
+					}
+				}
+				if (!exists)
+				{
+					world.Surfaces.Add(s);
+				}
+			}
 			if (switching)
 			{
 				transition -= num * 5f;
@@ -645,7 +705,7 @@ internal sealed class PetApplication : ApplicationContext
 			if (Config.CursorAwareness && Config.Interaction && !Creature.Held)
 			{
 				Vector2 value = Creature.Position - new Vector2(0f, Character.Height * 0.68f * Creature.Scale);
-				if (petting.Sample(world.Cursor, Vector2.Distance(value, world.Cursor) < 28f * Creature.Scale, Creature.Time, Creature.Scale))
+				if (petting.Sample(world.Cursor, Vector2.Distance(value, world.Cursor) < 28f * Creature.Scale, Creature.Time, Creature.Scale, Config.Advanced.PettingSensitivity))
 				{
 					Creature.Pet();
 					Events.Publish("pet.petted", Creature.Time);
@@ -701,7 +761,7 @@ internal sealed class PetApplication : ApplicationContext
 				Events.Publish(Media.State.Playing ? "media.started" : "media.paused", Creature.Time);
 				previousPlaying = Media.State.Playing;
 			}
-			if ((flag || flag2 || lastMediaChange != Media.State.Changes) && Environment.TickCount64 - lastContextReaction > 2000)
+			if ((flag || flag2 || lastMediaChange != Media.State.Changes) && Environment.TickCount64 - lastContextReaction > (long)(Config.Advanced.ContextReactionCooldownSec * 1000f))
 			{
 				Events.Publish(flag ? "window.created" : (flag2 ? "window.foregroundChanged" : "media.changed"), Creature.Time);
 				Creature.Notify();
@@ -736,21 +796,38 @@ internal sealed class PetApplication : ApplicationContext
 			}
 			Stopwatch stopwatch2 = Stopwatch.StartNew();
 			int num2 = 0;
+			float quantum = Math.Clamp(Config.Advanced.PhysicsStepSec, 1f / 240f, 1f / 30f);
 			accumulator += num;
-			while (accumulator >= 0.008333333767950535 && num2 < 30)
+			while (accumulator >= quantum && num2 < 30)
 			{
 				if (!Paused || Creature.Held)
 				{
 					Vector2? grabTarget = (Creature.Held ? new Vector2?(PetOverlay.CursorPhysical + grabOffset) : ((Vector2?)null));
-					Creature.Step(1f / 120f, world, Config, Config.OverridePersonality ? Config.Personality : Character.Personality, Config.Media && Media.State.Playing && Config.MusicStyle == MusicStyle.Dance, policy == QuietPolicy.Calm, grabTarget);
-					animator.Set(Creature.Motion);
-					animator.Step(1f / 120f, Config.RhythmAnalysis ? Media.Pulse : 0f, Creature.Velocity.X / Creature.Scale);
+					Creature.Step(quantum, world, Config, Config.OverridePersonality ? Config.Personality : Character.Personality, Config.Media && Media.State.Playing && Config.MusicStyle == MusicStyle.Dance, policy == QuietPolicy.Calm, grabTarget);
+					if (AnimationPreview.HasValue)
+					{
+						animator.Preview(AnimationPreview.Value);
+					}
+					else
+					{
+						animator.Set(Creature.Motion);
+					}
+					if (!AnimationPreviewPaused)
+					{
+						animator.BlendRate = Config.Advanced.BlendRate;
+						float previewSpeed = AnimationPreview.HasValue ? AnimationPreviewSpeed : Config.Advanced.AnimationSpeed;
+						animator.Step(quantum * previewSpeed, Config.RhythmAnalysis ? Media.Pulse : 0f, Creature.Velocity.X / Creature.Scale);
+						if (AnimationPreviewLoop && AnimationPreview.HasValue && animator.Finished)
+						{
+							animator.Restart();
+						}
+					}
 				}
 				if (!Paused || props.Interacting)
 				{
-					props.Step(1f / 120f, world);
+					props.Step(quantum, world);
 				}
-				accumulator -= 0.008333333767950535;
+				accumulator -= quantum;
 				num2++;
 			}
 			Metrics.SimulationMs = stopwatch2.Elapsed.TotalMilliseconds;
@@ -763,10 +840,23 @@ internal sealed class PetApplication : ApplicationContext
 				overlay.Draw(image, Creature.Position + (Creature.Held ? Vector2.Zero : (Creature.Velocity * (float)accumulator)), Creature.Scale, PetAlpha);
 				Metrics.RenderMs = stopwatch3.Elapsed.TotalMilliseconds;
 			}
-			props.AllowSurprises = !hidden && !Paused && policy != QuietPolicy.Calm;
+			props.AllowSurprises = !hidden && !Paused && policy != QuietPolicy.Calm && !TestMode;
 			props.Draw(hidden);
+			construction.Draw(hidden);
+			TrackSessions();
 			Metrics.FrameMs = stopwatch.Elapsed.TotalMilliseconds;
 			Metrics.Frame(!hidden);
+			if (policy == QuietPolicy.Calm)
+			{
+				if (Creature.Climb.Phase != ClimbPhase.None)
+				{
+					Creature.EndClimbSession();
+				}
+				if (Creature.Construction.HasSession)
+				{
+					Creature.Construction.Cancel();
+				}
+			}
 			double num3 = Math.Min(world.Nearest(Creature.Position)?.RefreshRate ?? 60f, Config.FrameLimit);
 			if (Config.Performance == PerformanceMode.Balanced)
 			{
@@ -815,6 +905,419 @@ internal sealed class PetApplication : ApplicationContext
 		}
 	}
 
+	private void TrackSessions()
+	{
+		if (Creature.Climb.Phase != lastClimbPhase)
+		{
+			Events.Publish(Creature.Climb.Phase == ClimbPhase.None ? "climb.ended" : "climb." + Creature.Climb.Phase.ToString().ToLowerInvariant(), Creature.Time);
+			lastClimbPhase = Creature.Climb.Phase;
+		}
+		BuildPhase buildPhase = Creature.Construction.Phase;
+		if (buildPhase != lastBuildPhase)
+		{
+			Events.Publish(buildPhase == BuildPhase.None ? "construction.ended" : "construction." + buildPhase.ToString().ToLowerInvariant(), Creature.Time);
+			lastBuildPhase = buildPhase;
+		}
+	}
+
+	public void OpenFeatureLab()
+	{
+		if (featureLab == null || featureLab.IsDisposed)
+		{
+			featureLab = new FeatureLabForm(this);
+		}
+		featureLab.Show();
+		featureLab.Activate();
+	}
+
+	private bool StartClimbSession(bool? side)
+	{
+		if (Creature.Held)
+		{
+			return false;
+		}
+		if (Creature.Climb.Phase != ClimbPhase.None)
+		{
+			Creature.EndClimbSession();
+		}
+		bool ok = Creature.Climb.Start(Observer.World, Creature, Config, Character.Species, manual: true, preferLeft: side);
+		if (ok)
+		{
+			Creature.RequestActivity(Activity.ClimbEdge, 40f);
+			Events.Publish("climb.started", Creature.Time);
+		}
+		return ok;
+	}
+
+	public bool LabClimbNearest() => StartClimbSession(null);
+
+	public bool LabClimbSide(bool left) => StartClimbSession(left);
+
+	public bool LabClimbCommand(ClimbCommand command) => Creature.Climb.Phase != ClimbPhase.None && Creature.Climb.Command(command, Creature, Config);
+
+	public void LabEndClimb() => Creature.EndClimbSession();
+
+	public string LabClimbStatus() => Creature.Climb.Phase == ClimbPhase.None ? "idle" : $"{Creature.Climb.Phase} · {Creature.Climb.Style}";
+
+	public string LabDescribeEdge()
+	{
+		if (ClimbSession.TryFindEdge(Observer.World, Creature.Position, Creature.Scale, out ClimbEdge edge, null, 2400f))
+		{
+			return (edge.LeftSide ? "left" : "right") + $" edge x={edge.X:0}, top={edge.Top:0}";
+		}
+		return "no edge in reach";
+	}
+
+	public bool LabBuild(StructureKind kind)
+	{
+		if (Creature.Held)
+		{
+			return false;
+		}
+		bool ok = Creature.Construction.StartBuild(Observer.World, Creature, Config, Character.Species, kind, manual: true);
+		if (ok)
+		{
+			Creature.RequestActivity(Activity.Build, 90f);
+			Events.Publish("construction.started", Creature.Time);
+		}
+		return ok;
+	}
+
+	public bool LabTestHammer()
+	{
+		if (!Creature.Construction.HasSession && !LabBuild(StructureKind.Platform))
+		{
+			return false;
+		}
+		return Creature.Construction.CommandTestHammer(Creature);
+	}
+
+	public bool LabTestNail()
+	{
+		if (!Creature.Construction.HasSession && !LabBuild(StructureKind.Platform))
+		{
+			return false;
+		}
+		return Creature.Construction.CommandTestNail(Creature);
+	}
+
+	public void LabDestroyStructure() => Creature.Construction.DestroyActive();
+
+	public void LabResetConstruction() => Creature.Construction.ResetWorld();
+
+	public string LabBuildStatus()
+	{
+		ConstructionWorld world = Creature.Construction;
+		if (!world.HasSession && world.Active == null)
+		{
+			return $"idle · {world.Structures.Count} structures · {world.Materials.Count} materials";
+		}
+		return $"{world.Phase} · {world.StyleNote} · stage {(world.Active?.Stage ?? 0)}/{(world.Active?.StagesTotal ?? 0)} · {world.HammerSwings} swings";
+	}
+
+	public void LabMove(float dx) => Creature.MoveTo(Creature.Position.X + dx * Creature.Scale);
+
+	public void LabSeekCursor() => Creature.Seek(Observer.World.Cursor);
+
+	public void LabGoTaskbar()
+	{
+		Display? display = Observer.World.Nearest(Creature.Position);
+		if (display != null)
+		{
+			Creature.Seek(new Vector2(display.Work.X + display.Work.W / 2f, display.Work.Bottom - 30f * Creature.Scale));
+		}
+	}
+
+	public bool LabGoWindow()
+	{
+		WindowInfo? window = Observer.World.Windows.FirstOrDefault();
+		if (window == null)
+		{
+			return false;
+		}
+		Creature.Seek(new Vector2(window.Bounds.X + window.Bounds.W / 2f, window.Bounds.Y));
+		return true;
+	}
+
+	public void LabHome()
+	{
+		Display? display = Observer.World.Nearest(Creature.Position);
+		if (display != null)
+		{
+			Creature.Seek(new Vector2(display.Work.X + display.Work.W * 0.65f, display.Work.Y + display.Work.H * 0.5f));
+		}
+	}
+
+	public void LabStop() => Creature.Halt();
+
+	public void LabDrop() => Creature.Drop();
+
+	public void LabJump() => Creature.Jump(Config.Advanced.JumpVelocity / 550f);
+
+	public void LabThrow(float dx, float dy, float mult)
+	{
+		Creature.Velocity = new Vector2(dx * Creature.Scale * mult, dy * Creature.Scale * mult);
+		Creature.Release(Config.Advanced.ThrowPower);
+		Events.Publish("pet.thrown", Creature.Time);
+	}
+
+	public void LabWake()
+	{
+		Creature.SetEnergy(0.65f);
+		Creature.RequestActivity(Activity.Wander, 3f);
+	}
+
+	public void LabSleep()
+	{
+		Creature.SetEnergy(0.05f);
+		Creature.RequestActivity(Activity.Sleep, 30f);
+	}
+
+	public void LabSit() => Creature.RequestActivity(Activity.Sit, 6f);
+
+	public void LabRoam() => Creature.RequestActivity(Activity.Wander, 20f);
+
+	public void LabRecover() => Creature.Recover();
+
+	public void LabResetPosition()
+	{
+		Creature.Reset(Observer.World);
+		Events.Publish("lab.repositioned", Creature.Time);
+	}
+
+	public void LabEmotion(string name)
+	{
+		switch (name)
+		{
+		case "Happy":
+			Creature.SetMood(1f);
+			Creature.Pet();
+			break;
+		case "Sad":
+			Creature.SetMood(0.2f);
+			Creature.SetEnergy(0.35f);
+			Creature.RequestActivity(Activity.Hide, 6f);
+			break;
+		case "Angry":
+			Creature.SetMood(0.12f);
+			Creature.SetEnergy(0.95f);
+			Creature.RequestActivity(Activity.Play, 5f);
+			break;
+		case "Annoyed":
+			Creature.SetMood(0.3f);
+			Creature.SetAttention(0.9f);
+			Creature.RequestActivity(Activity.Sit, 3f);
+			break;
+		case "Curious":
+			Creature.SetCuriosity(1f);
+			Creature.RequestActivity(Activity.Investigate, 6f);
+			break;
+		case "Excited":
+			Creature.SetMood(0.9f);
+			Creature.SetEnergy(1f);
+			Creature.RequestActivity(Activity.Play, 6f);
+			break;
+		case "Surprised":
+			Creature.Notify();
+			Creature.RequestActivity(Activity.Attention, 3f);
+			break;
+		case "Sleepy":
+			Creature.SetEnergy(0.08f);
+			Creature.RequestActivity(Activity.Sleep, 30f);
+			break;
+		case "Playful":
+			Creature.SetEnergy(1f);
+			Creature.SetMood(0.85f);
+			Creature.RequestActivity(Activity.Play, 8f);
+			break;
+		case "Scared":
+			Creature.SetMood(0.2f);
+			Creature.Notify();
+			Creature.RequestActivity(Activity.Hide, 8f);
+			break;
+		case "Proud":
+			Creature.SetMood(1f);
+			Creature.SetEnergy(0.8f);
+			Creature.RequestActivity(Activity.Play, 4f);
+			break;
+		default:
+			Creature.SetMood(0.7f);
+			Creature.SetEnergy(0.5f);
+			Creature.SetCuriosity(0.3f);
+			Creature.RequestActivity(Activity.Sit, 4f);
+			break;
+		}
+		Events.Publish("emotion." + name.ToLowerInvariant(), Creature.Time);
+	}
+
+	public void LabPet(int times)
+	{
+		for (int i = 0; i < Math.Clamp(times, 1, 12); i++)
+		{
+			Creature.Pet();
+		}
+		Events.Publish("pet.petted", Creature.Time);
+	}
+
+	public void LabPetInterrupt()
+	{
+		Creature.Pet();
+		Creature.RequestActivity(Activity.Wander, 2f);
+		Events.Publish("pet.petted", Creature.Time);
+	}
+
+	public void SimulateMediaPlaying(bool playing) => Media.SimulatePlaying(playing);
+
+	public void SimulateMediaLive()
+	{
+		bool was = Media.State.Playing;
+		Media.SimulatePlaying(null);
+		if (was)
+		{
+			Events.Publish("media.paused", Creature.Time);
+		}
+	}
+
+	public void SimulateMediaTrack()
+	{
+		Media.SimulateTrackChange();
+		Events.Publish("media.changed", Creature.Time);
+	}
+
+	public void SimulateRhythmAccent()
+	{
+		Media.SimulatePulse(1f);
+		Events.Publish("music.accent", Creature.Time);
+	}
+
+	public void LabDance(bool dance)
+	{
+		if (dance)
+		{
+			Creature.RequestActivity(Activity.Dance, 10f);
+		}
+		else
+		{
+			Creature.RequestActivity(Activity.Sit, 2f);
+		}
+	}
+
+	public void LabMusicEnergy(float value) => Creature.SetEnergy(value);
+
+	public bool LabDevice(string pet)
+	{
+		try
+		{
+			SelectPet(pet);
+			return true;
+		}
+		catch
+		{
+			return false;
+		}
+	}
+
+	public void SimulateDesktop(string kind)
+	{
+		Events.Publish(kind, Creature.Time);
+		switch (kind)
+		{
+		case "window.created":
+		case "window.foregroundChanged":
+			Observer.Invalidate();
+			Creature.Notify();
+			break;
+		case "window.closed":
+		case "window.moved":
+		case "window.resized":
+			Observer.Invalidate();
+			break;
+		case "monitor.changed":
+		case "dpi.changed":
+			Observer.Invalidate();
+			Media.Update(Config);
+			break;
+		case "notification.received":
+			Creature.Notify();
+			break;
+		}
+	}
+
+	public string LabTestTimer()
+	{
+		CommandPreview preview = NoteCommands.Parse("@timer 5m", DateTimeOffset.UtcNow, TimeZoneInfo.Local);
+		Reminders.Create(preview, null);
+		Events.Publish("reminder.created", Creature.Time);
+		return "Test timer for " + preview.Due.ToLocalTime().ToString("HH:mm");
+	}
+
+	public void LabTwigThrow(Vector2 velocity) => props.TwigThrow(velocity);
+
+	public void LabTwigGrab() => props.TwigGrab();
+
+	public void LabTwigHome() => props.TwigHome();
+
+	public string LabTwigState() => props.TwigState;
+
+	public void LabStopBall() => props.StopFootball();
+
+	public bool LabGiveMaterial()
+	{
+		Material? loose = Creature.Construction.Materials.FirstOrDefault(m => !m.Carried && !m.Placed);
+		if (loose == null)
+		{
+			loose = Creature.Construction.SpawnMaterial(MaterialKind.Plank, Creature.Position + new Vector2(80f * Creature.Scale, -40f * Creature.Scale));
+		}
+		if (loose == null)
+		{
+			return false;
+		}
+		loose.Carried = true;
+		Events.Publish("object.given", Creature.Time);
+		return true;
+	}
+
+	public bool LabSpawnMaterial(MaterialKind kind) => Creature.Construction.SpawnMaterial(kind, Creature.Position + new Vector2(100f * Creature.Scale, -60f * Creature.Scale)) != null;
+
+	public void RestartPreview() => animator.Restart();
+
+	public string AnimatorStatus()
+	{
+		Clip clip = Character.Animations[animator.State.ToString()];
+		return $"{animator.State} · {animator.Time:0.00}/{clip.Duration:0.00}s · {Metrics.Fps:0} fps · bob {animator.Pose.Bob:0.0} lean {animator.Pose.Lean:0.0} arms {animator.Pose.Arms:0.0}";
+	}
+
+	public string SupportDescription()
+	{
+		if (!Creature.Support.HasValue)
+		{
+			return "airborne";
+		}
+		long id = Creature.Support.Value;
+		if (id < -8000000L)
+		{
+			return "structure";
+		}
+		Surface? surface = Observer.World.Surfaces.FirstOrDefault(s => s.Id == id);
+		if (surface == null)
+		{
+			return "unknown";
+		}
+		return surface.Floor ? "floor" : "window ledge";
+	}
+
+	public void ResetTestState()
+	{
+		Creature.Construction.ResetWorld();
+		Creature.EndClimbSession();
+		AnimationPreview = null;
+		AnimationPreviewPaused = false;
+		TestMode = false;
+		BypassCooldowns = false;
+		Creature.Recover();
+		Events.Publish("lab.reset", Creature.Time);
+	}
+
 	public void Quit()
 	{
 		if (quitting)
@@ -860,6 +1363,8 @@ internal sealed class PetApplication : ApplicationContext
 			Metrics.Dispose();
 			musicCard?.Dispose();
 			props.Dispose();
+			construction.Dispose();
+			featureLab?.Dispose();
 			notebook?.Dispose();
 			Notifications.Dispose();
 			Media.Dispose();

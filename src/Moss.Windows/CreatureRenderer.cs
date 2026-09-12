@@ -169,6 +169,10 @@ internal sealed class CreatureRenderer : IDisposable
 		float width = character.Width;
 		float num6 = pose.Bob;
 		float num7 = 1f - pose.Crouch;
+		if (animation.State == Motion.Hanging && !reduced)
+		{
+			num7 *= 1.12f;
+		}
 		if (animation.State == Motion.Sleeping && !reduced)
 		{
 			num6 = MathF.Sin(num3 * 1.5f) * 1.1f;
@@ -307,7 +311,7 @@ internal sealed class CreatureRenderer : IDisposable
 		if (flag)
 		{
 			Motion state = activeAnimation.State;
-			bool flag2 = (((uint)(state - 1) <= 1u || state == Motion.Investigating) ? true : false);
+			bool flag2 = (((uint)(state - 1) <= 1u || state == Motion.Investigating || state == Motion.Climbing) ? true : false);
 			flag = flag2;
 		}
 		if (flag)
@@ -326,7 +330,7 @@ internal sealed class CreatureRenderer : IDisposable
 		if (flag)
 		{
 			Motion state = activeAnimation.State;
-			bool flag2 = (((uint)(state - 1) <= 1u || state == Motion.Investigating) ? true : false);
+			bool flag2 = (((uint)(state - 1) <= 1u || state == Motion.Investigating || state == Motion.Climbing) ? true : false);
 			flag = flag2;
 		}
 		if (flag)

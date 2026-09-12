@@ -24,5 +24,10 @@ public enum Motion
 	Startled,
 	Hiding,
 	Investigating,
-	Celebrating
+	Celebrating,
+	Hanging,
+	Carrying,
+	Hammering,
+	Peeking,
+	Balancing
 }

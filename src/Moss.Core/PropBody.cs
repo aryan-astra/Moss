@@ -49,7 +49,7 @@ public sealed class PropBody
 		Velocity = Vector2.Clamp(Velocity, new Vector2(-1600f), new Vector2(1600f));
 	}
 
-	public void Step(float dt, Creature pet, World w, Vector2? cursor)
+	public void Step(float dt, Creature pet, World w, Vector2? cursor, float gravityScale = 1f, float gripStrength = 1f)
 	{
 		float scale = pet.Scale;
 		pet.HandTarget = ((State == PropState.Carried || Contested) ? new Vector2?(Position) : ((Vector2?)null));
@@ -77,7 +77,7 @@ public sealed class PropBody
 				Vector2 vector3 = Position - vector;
 				float val = Math.Max(0f, vector2.Length() / scale - 800f) / 1000f + Math.Max(0f, num - 14000f) / 40000f;
 				strain = Math.Clamp(strain + Math.Min(4f, val) * dt - dt * 0.45f, 0f, 1f);
-				if (strain > 0.2f)
+				if (strain > 0.2f * Math.Clamp(gripStrength, 0.3f, 3f))
 				{
 					Contested = false;
 					pet.LoseToy();
@@ -102,7 +102,7 @@ public sealed class PropBody
 			Release();
 		}
 		Vector2 position = Position;
-		Velocity = new Vector2(Velocity.X * MathF.Exp((0f - dt) * (Grounded ? 8f : 0.2f)), Velocity.Y + 1300f * scale * dt);
+		Velocity = new Vector2(Velocity.X * MathF.Exp((0f - dt) * (Grounded ? 8f : 0.2f)), Velocity.Y + 1300f * scale * Math.Clamp(gravityScale, 0.2f, 3f) * dt);
 		Position += Velocity * dt;
 		Angle += Velocity.X * dt * 0.009f;
 		Grounded = false;

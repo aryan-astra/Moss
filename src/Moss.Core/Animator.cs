@@ -20,6 +20,8 @@ public sealed class Animator(Character character)
 
 	public float GaitCycle { get; private set; }
 
+	public float BlendRate { get; set; } = 12f;
+
 	public bool Finished
 	{
 		get
@@ -35,8 +37,7 @@ public sealed class Animator(Character character)
 	public event Action<Motion>? Marker;
 
 	public void Set(Motion state)
-	{
-		if (State != state)
+	{		if (State != state)
 		{
 			bool flag = (((uint)(state - 13) <= 2u || state == Motion.Impact) ? true : false);
 			bool flag2 = flag;
@@ -58,6 +59,19 @@ public sealed class Animator(Character character)
 		}
 	}
 
+	public void Preview(Motion state)
+	{
+		State = state;
+		Time = 0f;
+		Phase = 0f;
+	}
+
+	public void Restart()
+	{
+		Time = 0f;
+		Phase = 0f;
+	}
+
 	public void Step(float dt, float beatPulse, float velocity)
 	{
 		Clip clip = character.Animations[State.ToString()];
@@ -65,7 +79,7 @@ public sealed class Animator(Character character)
 		lastVelocity = velocity;
 		accelerationLean += (Math.Clamp(num * 0.015f, -9f, 9f) - accelerationLean) * (1f - MathF.Exp((0f - dt) * 7f));
 		Motion state = State;
-		if (((uint)(state - 1) <= 1u || state == Motion.Investigating) ? true : false)
+		if (((uint)(state - 1) <= 1u || state == Motion.Investigating || state == Motion.Climbing) ? true : false)
 		{
 			GaitCycle = (GaitCycle + Math.Abs(velocity) * dt / 38f) % 1f;
 		}
@@ -97,7 +111,7 @@ public sealed class Animator(Character character)
 		Phase = (clip.Loop ? ((Phase + dt * clip.Rate * ((float)Math.PI * 2f)) % ((float)Math.PI * 2f)) : (Math.Min(Time, clip.Duration) * clip.Rate * ((float)Math.PI * 2f)));
 		swayPhase = (swayPhase + dt * clip.Rate * (float)Math.PI) % ((float)Math.PI * 2f);
 		state = State;
-		bool flag = (((uint)(state - 1) <= 1u || state == Motion.Investigating) ? true : false);
+		bool flag = (((uint)(state - 1) <= 1u || state == Motion.Investigating || state == Motion.Climbing) ? true : false);
 		float num4 = MathF.Sin(flag ? (GaitCycle * ((float)Math.PI * 2f) * 2f) : Phase);
 		Pose pose = new Pose(clip.Bob * num4 + ((State == Motion.Dancing) ? (beatPulse * 6f) : 0f), clip.Lean + Math.Clamp(velocity / 35f, -5f, 5f) + accelerationLean, clip.Crouch, clip.Eyes, clip.Ears + num4 * 0.08f, clip.Arms);
 		if (State == Motion.Dancing)
@@ -110,6 +124,6 @@ public sealed class Animator(Character character)
 				Bob = MathF.Sin(Phase) * 2.5f + beatPulse * 3f
 			};
 		}
-		Pose = Pose.Blend(Pose, pose, 1f - MathF.Exp((0f - dt) * 12f));
+		Pose = Pose.Blend(Pose, pose, 1f - MathF.Exp((0f - dt) * BlendRate));
 	}
 }

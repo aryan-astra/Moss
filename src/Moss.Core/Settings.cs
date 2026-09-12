@@ -9,7 +9,7 @@ namespace Moss.Core;
 
 public sealed class Settings
 {
-	public int Version { get; set; } = 1;
+	public int Version { get; set; } = 2;
 
 	public string ActivePet { get; set; } = "moss";
 
@@ -90,9 +90,16 @@ public sealed class Settings
 
 	public string CharacterPath { get; set; } = "";
 
+	public AdvancedSettings Advanced { get; set; } = new AdvancedSettings();
+
 	public void Validate()
 	{
-		if (Version != 1 || !Enum.IsDefined(Fullscreen) || !Enum.IsDefined(Presentation) || !Enum.IsDefined(Performance))
+		if (Version == 1)
+		{
+			Advanced ??= new AdvancedSettings();
+			Version = 2;
+		}
+		if (Version != 2 || !Enum.IsDefined(Fullscreen) || !Enum.IsDefined(Presentation) || !Enum.IsDefined(Performance))
 		{
 			throw new InvalidDataException("Unsupported settings.");
 		}
@@ -142,6 +149,7 @@ public sealed class Settings
 		}
 		FrameLimit = Math.Clamp(FrameLimit, 15, 360);
 		Personality.Validate();
+		(Advanced ??= new AdvancedSettings()).Validate();
 	}
 
 	public static Settings Load(string path)

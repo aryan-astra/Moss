@@ -51,6 +51,35 @@ public sealed class Creature
 
 	private Surface? climbTarget;
 
+	public ClimbSession Climb { get; } = new ClimbSession();
+
+	public ConstructionWorld Construction { get; } = new ConstructionWorld();
+
+	public string Species { get; set; } = "bean";
+
+	public bool AutonomyEnabled { get; set; } = true;
+
+	internal Motion? MotionOverride { get; private set; }
+
+	internal void SetMotionOverride(Motion? motion)
+	{
+		MotionOverride = motion;
+	}
+
+	internal void SetVelocity(Vector2 velocity)
+	{
+		Velocity = velocity;
+	}
+
+	internal void SetHandTarget(Vector2? target)
+	{
+		HandTarget = target;
+	}
+
+	public double NextClimbAt { get; internal set; }
+
+	public double NextBuildAt { get; internal set; }
+
 	public float Affection { get; private set; }
 
 	public float Tug { get; set; }
@@ -144,13 +173,15 @@ public sealed class Creature
 		{
 			Position = new Vector2(display.Work.X + display.Work.W * 0.65f, display.Work.Y + display.Work.H * 0.5f);
 			Velocity = Vector2.Zero;
-			Support = null;
-			previousSupport = null;
-			climbTarget = null;
-			Held = false;
-			Activity = Activity.Wander;
-			decisionIn = 0f;
-		}
+		Support = null;
+		previousSupport = null;
+		climbTarget = null;
+		Held = false;
+		Activity = Activity.Wander;
+		decisionIn = 0f;
+		EndClimbSession();
+		Construction.Cancel();
+	}
 	}
 
 	public void Pet()
@@ -178,32 +209,138 @@ public sealed class Creature
 		Support = null;
 		previousSupport = null;
 		climbTarget = null;
+		EndClimbSession();
 		lastCursor = cursor;
 		Velocity *= 0.25f;
 	}
 
-	public void Release()
+	public void Release(float power = 1f)
 	{
 		Held = false;
 		justReleased = true;
-		Velocity = Vector2.Clamp(Velocity, new Vector2(-1800f * Scale, -1800f * Scale), new Vector2(1800f * Scale, 1800f * Scale));
+		float clamp = 1800f * Scale * Math.Clamp(power, 0.3f, 2.5f);
+		Velocity = Vector2.Clamp(Velocity, new Vector2(-clamp, -clamp), new Vector2(clamp, clamp));
+	}
+
+	internal void SetSupport(long? id)
+	{
+		Support = id;
+	}
+
+	internal void SetTargetX(float x)
+	{
+		TargetX = x;
+	}
+
+	internal void SetFacing(int facing)
+	{
+		Facing = facing;
+	}
+
+	internal void SetBalance(float value)
+	{
+		Balance = value;
+	}
+
+	internal void SetActivity(Activity activity, float duration)
+	{
+		Activity = activity;
+		remaining = duration;
+		decisionIn = duration;
+	}
+
+	internal void AddCooldown(Activity activity, double seconds)
+	{
+		cooldowns[activity] = Time + seconds;
+	}
+
+	internal double CooldownLeft(Activity activity)
+	{
+		return cooldowns.GetValueOrDefault(activity) - Time;
+	}
+
+	public void EndClimbSession()
+	{
+		Climb.Abort();
+		HandTarget = null;
+		MotionOverride = null;
+	}
+
+	public void ResetCooldowns()
+	{
+		NextClimbAt = 0.0;
+		NextBuildAt = 0.0;
+	}
+
+	public void RequestActivity(Activity activity, float duration)
+	{
+		SetActivity(activity, duration);
+	}
+
+	public void SetMood(float value)
+	{
+		Mood = Math.Clamp(value, 0f, 1f);
+	}
+
+	public void SetEnergy(float value)
+	{
+		Energy = Math.Clamp(value, 0f, 1f);
+	}
+
+	public void SetAttention(float value)
+	{
+		Attention = Math.Clamp(value, 0f, 1f);
+	}
+
+	public void SetCuriosity(float value)
+	{
+		Curiosity = Math.Clamp(value, 0f, 1f);
+	}
+
+	public void Halt()
+	{
+		Velocity = Vector2.Zero;
+		RequestActivity(Activity.Sit, 2f);
+	}
+
+	public void Drop()
+	{
+		Support = null;
+		previousSupport = null;
+		climbTarget = null;
+		Velocity = new Vector2(Velocity.X, Math.Max(0f, Velocity.Y));
+	}
+
+	public void MoveTo(float x)
+	{
+		TargetX = x;
+		RequestActivity(Activity.Wander, 4f);
+	}
+
+	public void Recover()
+	{
+		climbTarget = null;
+		decisionIn = 0f;
+		remaining = 0f;
 	}
 
 	public IReadOnlyDictionary<Activity, float> Scores(World w, Settings settings, Personality p, bool music)
 	{
 		bool hasValue = Support.HasValue;
-		bool flag = settings.CursorAwareness && Vector2.Distance(Position, w.Cursor) < 240f * Scale * settings.Sensitivity;
+		bool flag = settings.CursorAwareness && Vector2.Distance(Position, w.Cursor) < settings.Advanced.CursorAttractRadius * Scale * settings.Sensitivity;
 		Dictionary<Activity, float> dictionary = new Dictionary<Activity, float>
 		{
 			[Activity.Wander] = 0.28f + 0.3f * Energy,
 			[Activity.Sit] = 0.15f + 0.45f * p.Calmness + 0.3f * (1f - Energy),
-			[Activity.Sleep] = ((Energy < 0.35f) ? (1.3f - Energy) : (0.025f * p.Calmness)),
+			[Activity.Sleep] = ((Energy < settings.Advanced.SleepThreshold) ? (1.3f - Energy) : (0.025f * p.Calmness)),
 			[Activity.Investigate] = 0.15f + Curiosity * p.Curiosity * 0.7f,
-			[Activity.Play] = Energy * p.Playfulness * 0.6f,
-			[Activity.Dance] = ((music && Energy > 0.18f) ? (1.3f + p.Playfulness * 0.4f) : 0f),
+			[Activity.Play] = Energy * p.Playfulness * 0.6f * settings.Advanced.PlayScoreBoost,
+			[Activity.Dance] = ((music && Energy > settings.Advanced.MusicEnergyThreshold) ? (1.3f + p.Playfulness * 0.4f) : 0f),
 			[Activity.Hide] = 0.06f + (1f - Mood) * 0.4f,
 			[Activity.Attention] = (flag ? (Attention * p.Sociability * 0.95f) : 0.03f),
-			[Activity.Climb] = ((hasValue && settings.WindowGeometry && Reachable(w).Any()) ? (0.25f + p.Curiosity * 0.7f) : 0f)
+			[Activity.Climb] = ((hasValue && settings.WindowGeometry && Reachable(w).Any()) ? (0.25f + p.Curiosity * 0.7f) : 0f),
+			[Activity.ClimbEdge] = EdgeClimbScore(w, settings, p),
+			[Activity.Build] = BuildScore(settings, p)
 		};
 		Activity[] array = dictionary.Keys.ToArray();
 		foreach (Activity activity in array)
@@ -219,6 +356,32 @@ public sealed class Creature
 	private IEnumerable<Surface> Reachable(World w)
 	{
 		return w.Surfaces.Where((Surface s) => !s.Floor && s.Id != Support && s.Y < Position.Y - 20f * Scale && s.Y > Position.Y - 320f * Scale && s.Right - s.Left > 65f * Scale && Math.Min(Math.Abs(s.Left - Position.X), Math.Abs(s.Right - Position.X)) < 350f * Scale);
+	}
+
+	private float EdgeClimbScore(World w, Settings settings, Personality p)
+	{
+		if (settings.Advanced.ClimbFrequency == Frequency.Off || !Support.HasValue || !settings.WindowGeometry || Time < NextClimbAt)
+		{
+			return 0f;
+		}
+		if (!ClimbSession.TryFindEdge(w, Position, Scale, out _, null, 500f))
+		{
+			return 0f;
+		}
+		return (0.2f + Curiosity * p.Curiosity * 0.6f) * (Energy > 0.25f ? 1f : 0.2f);
+	}
+
+	private float BuildScore(Settings settings, Personality p)
+	{
+		if (settings.Advanced.BuildFrequency == Frequency.Off || !Support.HasValue || Time < NextBuildAt)
+		{
+			return 0f;
+		}
+		if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - settings.Advanced.LastBuildUnix < settings.Advanced.BuildCooldownSec)
+		{
+			return 0f;
+		}
+		return Curiosity * p.Curiosity * (0.15f + 0.5f * Mood) * (Energy > 0.3f ? 1f : 0.1f);
 	}
 
 	private void Decide(World w, Settings settings, Personality p, bool music)
@@ -241,7 +404,9 @@ public sealed class Creature
 			Activity.Sit => 5f, 
 			Activity.Dance => 7f, 
 			Activity.Climb => 12f, 
-			_ => 3f + (float)random.NextDouble() * 6f, 
+			Activity.ClimbEdge => 30f, 
+			Activity.Build => 60f, 
+			_ => settings.Advanced.WanderDecisionMinSec + (float)random.NextDouble() * Math.Max(0.5f, settings.Advanced.WanderDecisionMaxSec - settings.Advanced.WanderDecisionMinSec), 
 		};
 		decisionIn = remaining;
 		cooldowns[key] = Time + (double)remaining + (double)((key != Activity.Dance) ? 2 : 0);
@@ -255,7 +420,15 @@ public sealed class Creature
 			}
 			if (key == Activity.Investigate && w.Windows.Count > 0)
 			{
-				TargetX = w.Windows[random.Next(w.Windows.Count)].Bounds.X;
+				if (random.NextDouble() < settings.Advanced.WindowInvestigateProbability)
+				{
+					TargetX = w.Windows[random.Next(w.Windows.Count)].Bounds.X;
+				}
+				else
+				{
+					key = Activity.Wander;
+					Activity = key;
+				}
 			}
 			if (key == Activity.Hide)
 			{
@@ -271,6 +444,27 @@ public sealed class Creature
 			if (key == Activity.Play && Support.HasValue)
 			{
 				Jump();
+			}
+			if (key == Activity.ClimbEdge)
+			{
+				if (Climb.Start(w, this, settings, Species, manual: false))
+				{
+					TargetX = Climb.Edge.X + Climb.Edge.Inward * 20f * Scale;
+				}
+				else
+				{
+					key = Activity.Wander;
+					Activity = key;
+				}
+			}
+			if (key == Activity.Build)
+			{
+				StructureKind kind = random.NextDouble() < 0.7 ? StructureKind.House : (random.NextDouble() < 0.65 ? StructureKind.Platform : StructureKind.StickStructure);
+				if (!Construction.StartBuild(w, this, settings, Species, kind, manual: false))
+				{
+					key = Activity.Wander;
+					Activity = key;
+				}
 			}
 		}
 	}
@@ -290,11 +484,11 @@ public sealed class Creature
 		Velocity = new Vector2(Velocity.X, Math.Min(0f, Velocity.Y));
 	}
 
-	public void Jump()
+	public void Jump(float power = 1f)
 	{
 		if (Support.HasValue)
 		{
-			Velocity = new Vector2(Velocity.X, -550f * Scale);
+			Velocity = new Vector2(Velocity.X, -550f * Scale * Math.Clamp(power, 0.36f, 1.64f));
 			Support = null;
 			previousSupport = null;
 		}
@@ -345,8 +539,8 @@ public sealed class Creature
 			num2 = (flag ? (-0.007f) : (0.004f * settings.Activity));
 		}
 		float num3 = num2;
-		Energy = Math.Clamp(Energy - num3 * dt, 0f, 1f);
-		Mood = Math.Clamp(Mood + (0.7f - Mood) * dt * 0.01f, 0f, 1f);
+		Energy = Math.Clamp(Energy - num3 * dt * settings.Advanced.EnergyRecoveryRate, 0f, 1f);
+		Mood = Math.Clamp(Mood + (0.7f - Mood) * dt * 0.01f * settings.Advanced.MoodRecoveryRate, 0f, 1f);
 		Curiosity = Math.Clamp(Curiosity + dt * 0.012f, 0f, 1f);
 		Attention = Math.Clamp(Attention + dt * 0.009f, 0f, 1f);
 		remaining -= dt;
@@ -359,7 +553,7 @@ public sealed class Creature
 		{
 			Vector2 valueOrDefault = grabTarget.GetValueOrDefault();
 			heldTime += dt;
-			Vector2 vector = (valueOrDefault - Position) * 180f - Velocity * 25f;
+			Vector2 vector = (valueOrDefault - Position) * 180f * settings.Advanced.GrabSensitivity - Velocity * 25f * settings.Advanced.GrabSensitivity;
 			Velocity += vector * dt;
 			Position += Velocity * dt;
 			lastCursor = valueOrDefault;
@@ -442,11 +636,18 @@ public sealed class Creature
 			decisionIn = 1.2f;
 			cooldowns.Remove(Activity.Dance);
 		}
-		if (music && noticeMusic <= 0f && wakeIn <= 0f && Support.HasValue && impactIn <= 0f && Tug < 0.05f && !calm)
+		if (music && Energy > settings.Advanced.MusicEnergyThreshold && noticeMusic <= 0f && wakeIn <= 0f && Support.HasValue && impactIn <= 0f && Tug < 0.05f && !calm && !Construction.HasSession)
 		{
-			Activity = Activity.Dance;
-			decisionIn = 3f;
-			climbTarget = null;
+			if (Climb.Phase == ClimbPhase.ApproachEdge)
+			{
+				EndClimbSession();
+			}
+			if (Climb.Phase == ClimbPhase.None)
+			{
+				Activity = Activity.Dance;
+				decisionIn = 3f;
+				climbTarget = null;
+			}
 		}
 		if (reactionIn > 0f && Activity == Activity.Sleep)
 		{
@@ -461,8 +662,12 @@ public sealed class Creature
 				Activity = Activity.Sit;
 			}
 			climbTarget = null;
+			if (Climb.Phase != ClimbPhase.None)
+			{
+				EndClimbSession();
+			}
 		}
-		if (!calm && decisionIn <= 0f && Support.HasValue && impactIn <= 0f)
+		if (!calm && AutonomyEnabled && Climb.Phase == ClimbPhase.None && !Construction.HasSession && decisionIn <= 0f && Support.HasValue && impactIn <= 0f)
 		{
 			Decide(w, settings, p, music);
 		}
@@ -479,6 +684,8 @@ public sealed class Creature
 			case Activity.Hide:
 			case Activity.Attention:
 			case Activity.Climb:
+			case Activity.ClimbEdge:
+			case Activity.Build:
 				flag3 = true;
 				break;
 			default:
@@ -511,7 +718,7 @@ public sealed class Creature
 		}
 		if (Support.HasValue)
 		{
-			Velocity = new Vector2(Velocity.X + (num4 - Velocity.X) * (1f - MathF.Exp((0f - dt) * 9f)), 0f);
+			Velocity = new Vector2(Velocity.X + (num4 - Velocity.X) * (1f - MathF.Exp((0f - dt) * 9f * settings.Advanced.FrictionScale)), 0f);
 			if (climbTarget != null && Activity == Activity.Climb && Math.Abs(Position.X - TargetX) < 28f * Scale)
 			{
 				Support = null;
@@ -520,7 +727,7 @@ public sealed class Creature
 		}
 		else
 		{
-			Velocity = new Vector2(Velocity.X * MathF.Exp((0f - dt) * 0.18f), Velocity.Y + 1300f * Scale * dt);
+			Velocity = new Vector2(Velocity.X * MathF.Exp((0f - dt) * 0.18f * settings.Advanced.FrictionScale), Velocity.Y + 1300f * Scale * settings.Advanced.GravityScale * dt);
 		}
 		bool flag4 = climbTarget != null && Activity == Activity.Climb && Math.Abs(Position.X - TargetX) < 30f * Scale && remaining > 0f;
 		if (flag4)
@@ -555,7 +762,7 @@ public sealed class Creature
 			Support = null;
 			previousSupport = null;
 		}
-		if (!Support.HasValue && !flag4 && Velocity.Y >= 0f)
+		if (!Support.HasValue && !flag4 && Velocity.Y >= 0f && !Climb.SuspendLanding)
 		{
 			Surface surface3 = (from s in w.Surfaces
 				where before.Y <= s.Y + 0.5f && Position.Y >= s.Y && s.Supports(before.X + (Position.X - before.X) * Math.Clamp((s.Y - before.Y) / Math.Max(0.001f, Position.Y - before.Y), 0f, 1f))
@@ -565,15 +772,16 @@ public sealed class Creature
 			{
 				float num5 = Velocity.Y / Scale;
 				Position = new Vector2(Position.X, surface3.Y);
+				float retention = MathF.Pow(0.72f, settings.Advanced.FrictionScale);
 				if (num5 > 850f && !settings.ReducedMotion)
 				{
-					Velocity = new Vector2(Velocity.X * 0.65f, (0f - Velocity.Y) * 0.22f);
+					Velocity = new Vector2(Velocity.X * MathF.Pow(0.65f, settings.Advanced.FrictionScale), (0f - Velocity.Y) * 0.22f * settings.Advanced.BounceScale);
 				}
 				else
 				{
 					Support = surface3.Id;
 					previousSupport = surface3;
-					Velocity = new Vector2(Velocity.X * 0.72f, 0f);
+					Velocity = new Vector2(Velocity.X * retention, 0f);
 				}
 				impactIn = ((num5 > 350f) ? 0.8f : 0.25f);
 				Mood = Math.Max(0.25f, Mood - 0.025f);
@@ -601,6 +809,11 @@ public sealed class Creature
 			previousSupport = null;
 		}
 		Balance *= MathF.Exp((0f - dt) * 5f);
+		if (Climb.Phase != ClimbPhase.None)
+		{
+			Climb.Step(dt, this, w, settings);
+		}
+		Construction.Step(dt, this, w, settings, Species);
 		Motion = SelectMotion(flag4, calm);
 		justReleased = false;
 	}
@@ -610,6 +823,10 @@ public sealed class Creature
 		if (justReleased)
 		{
 			return Motion.Thrown;
+		}
+		if (MotionOverride.HasValue)
+		{
+			return MotionOverride.Value;
 		}
 		if (climbing)
 		{

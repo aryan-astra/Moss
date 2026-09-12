@@ -45,6 +45,8 @@ internal sealed class MediaObserver : IDisposable
 
 	private int audioStopped;
 
+	private bool simulateTrackBump;
+
 	private int failures;
 
 	private long nextPoll;
@@ -58,6 +60,29 @@ internal sealed class MediaObserver : IDisposable
 	private volatile float pulse;
 
 	private string sessionStatus = "Waiting for a media session";
+
+	public bool? SimulatedPlaying { get; private set; }
+
+	public void SimulatePlaying(bool? playing)
+	{
+		SimulatedPlaying = playing;
+		if (playing.HasValue)
+		{
+			sessionPlaying = playing.Value;
+			State.Update(playing.Value);
+		}
+	}
+
+	public void SimulatePulse(float amount)
+	{
+		pulse = Math.Clamp(amount, 0f, 1f);
+	}
+
+	public void SimulateTrackChange()
+	{
+		simulateTrackBump = true;
+		State.Update(State.Playing, trackChanged: true);
+	}
 
 	public bool UsingAudioFallback
 	{
@@ -91,6 +116,10 @@ internal sealed class MediaObserver : IDisposable
 	{
 		get
 		{
+			if (SimulatedPlaying.HasValue)
+			{
+				return SimulatedPlaying.Value ? "Simulated playback (Feature Lab)" : "Simulated pause (Feature Lab)";
+			}
 			if (!UsingAudioFallback)
 			{
 				return sessionStatus;
@@ -152,6 +181,11 @@ internal sealed class MediaObserver : IDisposable
 		{
 			return;
 		}
+		if (SimulatedPlaying.HasValue)
+		{
+			sessionPlaying = SimulatedPlaying.Value;
+		}
+		detector.Sensitivity = settings.Advanced.RhythmSensitivity;
 		output.Update(settings.Media && settings.AudioLevelFallback);
 		State.Update(settings.Media && (sessionPlaying || output.Active));
 		if (!settings.Media)
@@ -228,9 +262,10 @@ internal sealed class MediaObserver : IDisposable
 				ClearMetadata();
 				metadataRevision = -1;
 			}
-			bool flag2 = (sessionPlaying = num >= 0 && list2[num].Playing);
+			bool flag2 = (sessionPlaying = SimulatedPlaying ?? (num >= 0 && list2[num].Playing));
 			seenRevision = Volatile.Read(in revision);
-			State.Update(flag2 || output.Active, flag);
+			State.Update(flag2 || output.Active, flag || simulateTrackBump);
+			simulateTrackBump = false;
 			Status = ((num < 0) ? "No player is sharing Windows media controls" : (flag2 ? "Music detected — a Windows media session is playing" : "Players are paused or stopped"));
 			if (session == null || !settings.MediaMetadata)
 			{

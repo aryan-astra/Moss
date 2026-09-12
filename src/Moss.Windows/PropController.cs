@@ -106,7 +106,7 @@ internal sealed class PropController : IDisposable
 
 	public void Step(float dt, World w)
 	{
-		body.Step(dt, app.Creature, w, (body.State == PropState.HeldByUser) ? new Vector2?(PetOverlay.CursorPhysical + grabOffset) : ((Vector2?)null));
+		body.Step(dt, app.Creature, w, (body.State == PropState.HeldByUser) ? new Vector2?(PetOverlay.CursorPhysical + grabOffset) : ((Vector2?)null), app.Config.Advanced.GravityScale, app.Config.Advanced.ObjectGripStrength);
 		if (AllowSurprises && app.Config.SurprisePlay && !app.Config.ReducedMotion)
 		{
 			nextBall -= dt;
@@ -116,10 +116,37 @@ internal sealed class PropController : IDisposable
 				{
 					RollFootball();
 				}
-				nextBall = 120 + random.Next(120);
+				nextBall = app.Config.Advanced.SurpriseIntervalMinSec + (float)random.NextDouble() * Math.Max(1f, app.Config.Advanced.SurpriseIntervalMaxSec - app.Config.Advanced.SurpriseIntervalMinSec);
 			}
 		}
-		ball.Step(dt, w, app.Creature, ballHeld ? new Vector2?(PetOverlay.CursorPhysical + ballOffset) : ((Vector2?)null));
+		ball.Step(dt, w, app.Creature, ballHeld ? new Vector2?(PetOverlay.CursorPhysical + ballOffset) : ((Vector2?)null), app.Config.Advanced.GravityScale, app.Config.Advanced.BounceScale);
+	}
+
+	public void StopFootball()
+	{
+		ball.Stop();
+	}
+
+	public string TwigState => body.State.ToString() + (body.Contested ? " (contested)" : "");
+
+	public void TwigThrow(Vector2 velocity)
+	{
+		body.Velocity = velocity;
+		body.Release();
+		app.Events.Publish("object.thrown", app.Creature.Time);
+	}
+
+	public void TwigGrab()
+	{
+		body.Grab();
+		app.Events.Publish("object.grabbed", app.Creature.Time);
+	}
+
+	public void TwigHome()
+	{
+		body.Release();
+		body.Position = app.Creature.Position + new Vector2(60f, -40f) * app.Creature.Scale;
+		body.Velocity = Vector2.Zero;
 	}
 
 	public void Draw(bool hidden)

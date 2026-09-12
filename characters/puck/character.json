@@ -294,6 +294,66 @@
         0.2,
         0.7
       ]
+    },
+    "Hanging": {
+      "rate": 0.96,
+      "bob": 0.4,
+      "lean": 0,
+      "crouch": 0.08,
+      "eyes": 1,
+      "ears": 0.1,
+      "arms": 2.5,
+      "duration": 1.6,
+      "loop": true,
+      "markers": []
+    },
+    "Carrying": {
+      "rate": 1.6,
+      "bob": 1.6,
+      "lean": 1.5,
+      "crouch": 0.05,
+      "eyes": 1,
+      "ears": 0,
+      "arms": 1.8,
+      "duration": 1,
+      "loop": true,
+      "markers": []
+    },
+    "Hammering": {
+      "rate": 2.56,
+      "bob": 2.2,
+      "lean": 1,
+      "crouch": 0.12,
+      "eyes": 1,
+      "ears": 0,
+      "arms": 3,
+      "duration": 0.9,
+      "loop": true,
+      "markers": [0.5]
+    },
+    "Peeking": {
+      "rate": 0.64,
+      "bob": 0.3,
+      "lean": 2,
+      "crouch": 0,
+      "eyes": 1,
+      "ears": 1,
+      "arms": 0,
+      "duration": 2.2,
+      "loop": true,
+      "markers": []
+    },
+    "Balancing": {
+      "rate": 1.12,
+      "bob": 1.2,
+      "lean": 0,
+      "crouch": 0.15,
+      "eyes": 1,
+      "ears": 0.3,
+      "arms": 2.2,
+      "duration": 1.2,
+      "loop": true,
+      "markers": []
     }
   },
   "headphones": true,

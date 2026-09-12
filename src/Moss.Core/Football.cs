@@ -34,7 +34,7 @@ public sealed class Football
 		Active = false;
 	}
 
-	public void Step(float dt, World world, Creature pet, Vector2? hand = null)
+	public void Step(float dt, World world, Creature pet, Vector2? hand = null, float gravityScale = 1f, float bounceScale = 1f)
 	{
 		if (!Active || dt <= 0f || !float.IsFinite(dt))
 		{
@@ -59,7 +59,7 @@ public sealed class Football
 			return;
 		}
 		Vector2 position = Position;
-		Velocity = new Vector2(Velocity.X * MathF.Exp((0f - dt) * 0.4f), Velocity.Y + 1050f * num * dt);
+		Velocity = new Vector2(Velocity.X * MathF.Exp((0f - dt) * 0.4f), Velocity.Y + 1050f * num * Math.Clamp(gravityScale, 0.2f, 3f) * dt);
 		Position += Velocity * dt;
 		Surface surface = null;
 		foreach (Surface surface2 in world.Surfaces)
@@ -72,7 +72,7 @@ public sealed class Football
 		if (surface != null)
 		{
 			Position = new Vector2(Position.X, surface.Y - num2);
-			Velocity = new Vector2(Velocity.X * 0.95f, (Velocity.Y > 70f * num) ? ((0f - Velocity.Y) * 0.66f) : 0f);
+			Velocity = new Vector2(Velocity.X * 0.95f, (Velocity.Y > 70f * num) ? ((0f - Velocity.Y) * 0.66f * Math.Clamp(bounceScale, 0f, 1.5f)) : 0f);
 		}
 		Display display = world.Nearest(Position);
 		if (display == null)

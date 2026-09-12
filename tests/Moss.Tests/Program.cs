@@ -9,14 +9,14 @@ using Moss.Core;
 
 internal static class Program
 {
-	private static int failures;
+	internal static int failures;
 
-	private static void Pass(string name)
+	internal static void Pass(string name)
 	{
 		Console.WriteLine("PASS  " + name);
 	}
 
-	private static void Check(bool condition, string name)
+	internal static void Check(bool condition, string name)
 	{
 		if (condition)
 		{
@@ -29,7 +29,7 @@ internal static class Program
 		}
 	}
 
-	private static void Expect<TException>(Action action, string name) where TException : Exception
+	internal static void Expect<TException>(Action action, string name) where TException : Exception
 	{
 		try
 		{
@@ -68,7 +68,7 @@ internal static class Program
 
 		string[] species = { "moss", "miso", "pip", "lark", "inky", "clover", "puck" };
 		int motions = Enum.GetNames<Motion>().Length;
-		Check(motions == 23, "motion set has 23 states");
+		Check(motions == 28, "motion set has 28 states");
 		foreach (string name in species)
 		{
 			Character character = Character.Load(Path.Combine(root, "characters", name, "character.json"));
@@ -110,6 +110,8 @@ internal static class Program
 
 		string? informational = typeof(Character).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
 		Check(informational != null && (informational == "1.0.0" || informational.StartsWith("1.0.0+", StringComparison.Ordinal)), "core version stamp is 1.0.0 (got " + informational + ")");
+
+		FeatureChecks.Run();
 
 		Console.WriteLine(failures == 0 ? "RESULT: all checks passed" : "RESULT: " + failures + " check(s) failed");
 		return failures == 0 ? 0 : 1;

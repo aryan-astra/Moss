@@ -10,5 +10,7 @@ public enum Activity
 	Dance,
 	Hide,
 	Attention,
-	Climb
+	Climb,
+	ClimbEdge,
+	Build
 }

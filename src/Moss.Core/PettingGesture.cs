@@ -17,8 +17,9 @@ public sealed class PettingGesture
 
 	private float distance;
 
-	public bool Sample(Vector2 cursor, bool inHead, double time, float scale)
+	public bool Sample(Vector2 cursor, bool inHead, double time, float scale, float sensitivity = 1f)
 	{
+		sensitivity = Math.Clamp(sensitivity, 0.3f, 3f);
 		if (!inHead || time - lastTime > 0.35)
 		{
 			reversals = 0;
@@ -31,7 +32,7 @@ public sealed class PettingGesture
 		float value = cursor.X - last.X;
 		last = cursor;
 		lastTime = time;
-		if (Math.Abs(value) < 2f * scale)
+		if (Math.Abs(value) < 2f * scale * sensitivity)
 		{
 			return false;
 		}
@@ -42,7 +43,7 @@ public sealed class PettingGesture
 		}
 		direction = num;
 		distance += Math.Abs(value);
-		if (reversals >= 2 && distance > 32f * scale && time - lastPet > 0.7)
+		if (reversals >= 2 && distance > 32f * scale * sensitivity && time - lastPet > 0.7)
 		{
 			lastPet = time;
 			reversals = 0;

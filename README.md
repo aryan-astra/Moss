@@ -91,8 +91,12 @@ cd Moss
 
 Needs the .NET 8 SDK (pinned in `global.json`). That one script restores, builds [`Moss.sln`](Moss.sln), runs the 18-check harness, and stages the portable ZIP, the single-file EXE and checksums under `artifacts/`. Releases are cut the same way by robots: push a `v1.*` tag matching `Directory.Build.props` and GitHub Actions does the rest. Bring your own creature too — a character is one validated `character.json` (see [`characters/character.schema.json`](characters/character.schema.json)).
 
+## Simple outside, laboratory inside
+
+Moss keeps two faces: the shell stays simple — Climbing, Construction, Animations and Mischief each offer Rare / Occasional / Frequent — while **Feature Lab** (tray → Feature Lab…) opens the workshop. Every behavior above has a manual trigger there (climb the left edge, build a house now, replay any of the 28 animations), plus exact timing, physics and behavior values, presets, a live event stream and a world inspector. Test Mode pauses autonomy so your triggers take priority, and every advanced value persists across restarts.
+
 ## Credits
 
-Built with .NET 8, WinForms, NAudio and Markdig — attributions in [`licenses/`](licenses/). Brand artwork lives in [`assets/branding/`](assets/branding). Recorded harness output: [`docs/test-results.txt`](docs/test-results.txt).
+Built with .NET 8, WinForms, NAudio and Markdig — attributions in [`licenses/`](licenses/). Brand artwork lives in [`assets/branding/`](assets/branding/).
 
 MIT — see [LICENSE](LICENSE). Free forever, no strings attached.
