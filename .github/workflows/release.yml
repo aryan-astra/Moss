@@ -1,13 +1,14 @@
 # Moss automated release.
 #
-# Trigger: push a tag named v<Version>, e.g. v1.3.0
-#   git tag v1.3.0
-#   git push origin v1.3.0
+# Trigger: push a tag named v<Version>, e.g. v1.0.0
+#   git tag v1.0.0
+#   git push origin v1.0.0
 #
-# The workflow restores, builds, tests, and publishes the portable
-# Windows x64 distribution from source, packages it as
-# Moss-<Version>-windows-x64.zip (+ .sha256 checksum), and attaches both
-# files to a GitHub Release titled "Moss <Version>".
+# The workflow restores, builds, tests, and publishes a single
+# self-contained Moss.exe from source (no install, no separate runtime,
+# no ZIP to extract), hashes it, and attaches Moss-<Version>-windows-x64.exe
+# (+ .sha256 checksum) to a GitHub Release titled "Moss <Version>".
+# Users download one file and run it.
 #
 # Version consistency is enforced, not assumed:
 #   1. The tag must have the form v1.<minor>.<patch> (releases are 1.x only).
@@ -19,9 +20,9 @@
 # tests/, scripts/) at the repository root. If that tree is absent the run
 # fails fast with an explicit message instead of a cryptic build error.
 #
-# If a Release already exists for the pushed tag (e.g. the portable
-# binaries were published manually), the run exits successfully without
-# doing anything instead of failing or duplicating the release.
+# If a Release already exists for the pushed tag (e.g. the binaries were
+# published manually), the run exits successfully without doing anything
+# instead of failing or duplicating the release.
 
 name: release
 
@@ -63,7 +64,7 @@ jobs:
         run: |
           $tag = '${{ github.ref_name }}'
           if ($tag -notmatch '^v(1\.\d+\.\d+)$') {
-            throw "Refusing to release: tag '$tag' must have the form v1.<minor>.<patch> (e.g. v1.3.0)."
+            throw "Refusing to release: tag '$tag' must have the form v1.<minor>.<patch> (e.g. v1.0.0)."
           }
           $number = $Matches[1]
           [xml]$props = Get-Content -LiteralPath 'Directory.Build.props'
@@ -102,32 +103,24 @@ jobs:
         shell: pwsh
         run: dotnet run --project tests/Moss.Tests -c Release --no-build -- .
 
-      - name: Publish portable build
+      - name: Publish single-file exe
         if: steps.preskip.outputs.skip != 'true'
         shell: pwsh
         run: >
           dotnet publish src/Moss.Windows -c Release -r win-x64
-          --self-contained true -p:PublishSingleFile=false -p:DebugType=None
+          --self-contained true -p:PublishSingleFile=true -p:DebugType=None
           -o artifacts/Moss-win-x64
 
-      - name: Package distribution
+      - name: Stage release asset
         if: steps.preskip.outputs.skip != 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $out = 'artifacts/Moss-win-x64'
-          foreach ($item in @('README.md', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'docs', 'licenses')) {
-            if (-not (Test-Path -LiteralPath $item)) { throw "Expected distribution item '$item' is missing." }
-          }
-          Copy-Item README.md,LICENSE,THIRD-PARTY-NOTICES.md $out
-          Copy-Item docs,licenses $out -Recurse
-          if (Test-Path -LiteralPath 'scripts/uninstall-portable.ps1') {
-            Copy-Item scripts/uninstall-portable.ps1 $out
-          }
-          $zip = "artifacts/Moss-${{ steps.version.outputs.number }}-windows-x64.zip"
-          if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip }
-          Compress-Archive "$out/*" $zip -Force
-          (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash | Out-File "$zip.sha256" -Encoding ascii
+          $built = 'artifacts/Moss-win-x64/Moss.exe'
+          if (-not (Test-Path -LiteralPath $built)) { throw "Expected single-file build output '$built' is missing." }
+          $exe = "artifacts/Moss-${{ steps.version.outputs.number }}-windows-x64.exe"
+          Copy-Item -LiteralPath $built -Destination $exe -Force
+          (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash | Out-File "$exe.sha256" -Encoding ascii
 
       - name: Create GitHub Release
         if: steps.preskip.outputs.skip != 'true'
@@ -138,5 +131,5 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $tag = '${{ github.ref_name }}'
           $number = '${{ steps.version.outputs.number }}'
-          $zip = "artifacts/Moss-$number-windows-x64.zip"
-          gh release create $tag $zip "$zip.sha256" --title "Moss $number" --notes "Portable Windows x64 build of Moss $number. See README.md and docs/USER-GUIDE.md inside the archive."
+          $exe = "artifacts/Moss-$number-windows-x64.exe"
+          gh release create $tag $exe "$exe.sha256" --title "Moss $number" --notes "Moss $number for Windows 10/11 x64. Download Moss-$number-windows-x64.exe and run it — no install, no separate runtime, no extraction needed. Character packs, docs and licenses live in this repository."

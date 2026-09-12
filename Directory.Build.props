@@ -2,9 +2,9 @@
   <!-- Moss application version: single source of truth.
 
        The automated release workflow (.github/workflows/release.yml) only
-       accepts tags of the form v<Version> (e.g. v1.3.0) and fails the run
+       accepts tags of the form v<Version> (e.g. v1.0.0) and fails the run
        if the tag does not exactly match the <Version> below, so the git
-       tag, the release title/artifact names, and the compiled executable
+       tag, the release title/asset names, and the compiled executable
        version can never drift apart.
 
        MSBuild reads this file automatically for every project under this
@@ -16,9 +16,9 @@
        source tree's own Directory.Build.props instead of keeping two
        competing files. -->
   <PropertyGroup>
-    <Version>1.3.0</Version>
-    <AssemblyVersion>1.3.0.0</AssemblyVersion>
-    <FileVersion>1.3.0.0</FileVersion>
-    <InformationalVersion>1.3.0</InformationalVersion>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
   </PropertyGroup>
 </Project>
