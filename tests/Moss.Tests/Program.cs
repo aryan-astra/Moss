@@ -48,6 +48,8 @@ internal static class Program
 		}
 	}
 
+	internal static string RepoRoot { get; private set; } = "";
+
 	private static string FindRepoRoot()
 	{
 		string? directory = AppContext.BaseDirectory;
@@ -65,6 +67,7 @@ internal static class Program
 	private static int Main()
 	{
 		string root = FindRepoRoot();
+		RepoRoot = root;
 
 		string[] species = { "moss", "miso", "pip", "lark", "inky", "clover", "puck" };
 		int motions = Enum.GetNames<Motion>().Length;
@@ -106,6 +109,8 @@ internal static class Program
 		DateTimeOffset now = new DateTimeOffset(2026, 9, 12, 12, 0, 0, TimeSpan.Zero);
 		CommandPreview timer = NoteCommands.Parse("@timer 25m", now, TimeZoneInfo.Utc);
 		Check(timer.Due - now == TimeSpan.FromMinutes(25), "compact timer parses to exact deadline");
+		CommandPreview quick = NoteCommands.Parse("@timer 5s", now, TimeZoneInfo.Utc);
+		Check(quick.Due - now == TimeSpan.FromSeconds(5), "second-granularity timer parses");
 		Expect<FormatException>(() => NoteCommands.Parse("hello world", now, TimeZoneInfo.Utc), "plain text is not a command");
 
 		string? informational = typeof(Character).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;

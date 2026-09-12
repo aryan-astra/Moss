@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Moss.Core;
 
 internal static class FeatureChecks
@@ -32,6 +33,13 @@ internal static class FeatureChecks
 		return pet;
 	}
 
+	private static World MakeLedgeWorld()
+	{
+		World world = MakeWorld();
+		world.Surfaces.Add(new Surface(2L, 800f, 1100f, 700f, Floor: false, 800f));
+		return world;
+	}
+
 	public static void Run()
 	{
 		Settings settings = new Settings();
@@ -47,21 +55,59 @@ internal static class FeatureChecks
 		Program.Check(!pet.Climb.Start(world, pet, settings, "bean", manual: true, seed: 7), "second climb start refused while active");
 		Program.Check(!pet.Climb.Command(ClimbCommand.JumpFromEdge, pet, settings), "jump rejected before gripping");
 		int steps = 0;
+		float loX = 99999f, hiX = -99999f, loY = 99999f, hiY = -99999f;
 		while (pet.Climb.Phase != ClimbPhase.None && steps < 30000)
 		{
 			pet.Step(1f / 120f, world, settings, personality, music: false);
 			steps++;
+			loX = Math.Min(loX, pet.Position.X);
+			hiX = Math.Max(hiX, pet.Position.X);
+			loY = Math.Min(loY, pet.Position.Y);
+			hiY = Math.Max(hiY, pet.Position.Y);
 		}
 		Program.Check(pet.Climb.Phase == ClimbPhase.None, "climb session terminates");
+		Program.Check(loX >= 15f && hiX <= 1890f && loY >= 135f && hiY <= 1230f, "climb stays on the visible screen");
 		Program.Check(pet.Climb.Succeeded, "climb reaches the corner");
 		Program.Check(pet.NextClimbAt > pet.Time, "climb completion arms interval cooldown");
 		Program.Check(pet.Climb.Route.Count > 0, "climb route recorded for debug view");
 
+		Creature fresh = MakePet(world);
+		fresh.Position = new System.Numerics.Vector2(60f, 900f);
+		fresh.AutonomyEnabled = false;
+		for (int i = 0; i < 15000; i++)
+		{
+			fresh.Step(1f / 120f, world, settings, personality, music: false);
+		}
+		settings.Advanced.LastBuildUnix = 0;
+		float firstScore = fresh.Scores(world, settings, personality, music: false)[Activity.Build];
+		settings.Advanced.LastBuildUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+		float laterScore = fresh.Scores(world, settings, personality, music: false)[Activity.Build];
+		Program.Check(firstScore > 0f && firstScore > laterScore, "first build desired more than later ones");
+		settings.Advanced.LastBuildUnix = 0;
+
+		Creature busy = MakePet(world);
+		busy.Position = new System.Numerics.Vector2(60f, 900f);
+		busy.Pet();
+		Program.Check(busy.IdleSeconds < 1.0, "touching the pet resets idle time");
+		Program.Check(busy.Scores(world, settings, personality, music: false)[Activity.ClimbEdge] == 0f, "fresh touch blocks autonomous climbing");
+		for (int i = 0; i < 240; i++)
+		{
+			busy.Step(1f / 120f, world, settings, personality, music: false);
+		}
+		Program.Check(busy.IdleSeconds > 1f, "quiet time accumulates");
+		Program.Check(settings.Advanced.ClimbIdleSec == 60f && settings.Advanced.BuildIdleSec == 120f, "idle defaults are one and two minutes");
+
 		Creature near = MakePet(world);
-		near.Position = new System.Numerics.Vector2(60f, 1040f);
+		near.Position = new System.Numerics.Vector2(60f, 900f);
+		near.AutonomyEnabled = false;
+		for (int i = 0; i < 7500; i++)
+		{
+			near.Step(1f / 120f, world, settings, personality, music: false);
+		}
 		near.SetCuriosity(1f);
 		near.SetEnergy(0.9f);
 		Program.Check(near.Scores(world, settings, personality, music: false)[Activity.ClimbEdge] > 0f, "edge climb desired near a screen edge");
+		near.AutonomyEnabled = true;
 
 		bool selfStarted = false;
 		bool stayedInside = true;
@@ -188,5 +234,79 @@ internal static class FeatureChecks
 			hub.Publish("lab.ping", i);
 		}
 		Program.Check(hub.Recent.Count == 100, "event stream stays bounded");
+
+		string oldPack = Path.Combine(Path.GetTempPath(), "moss-old-pack.json");
+		string mossText = File.ReadAllText(Path.Combine(Program.RepoRoot, "characters", "moss", "character.json"));
+		foreach (string extra in new[] { "Hanging", "Carrying", "Hammering", "Peeking", "Balancing" })
+		{
+			string marker = ",\n    \"" + extra + "\": {";
+			int at = mossText.IndexOf(marker);
+			int open = mossText.IndexOf("{", at);
+			int depth = 0;
+			int end = open;
+			for (int i = open; i < mossText.Length; i++)
+			{
+				if (mossText[i] == '{') depth++;
+				else if (mossText[i] == '}')
+				{
+					depth--;
+					if (depth == 0) { end = i + 1; break; }
+				}
+			}
+			mossText = mossText.Remove(at, end - at);
+		}
+		File.WriteAllText(oldPack, mossText);
+		Program.Expect<InvalidDataException>(() => Character.Load(oldPack), "old pack without new clips rejected");
+		Character migratedPack = System.Text.Json.JsonSerializer.Deserialize<Character>(File.ReadAllText(oldPack), Json.Options) ?? throw new InvalidOperationException("test setup failed");
+		migratedPack.FillMissingClips(Character.Load(Path.Combine(Program.RepoRoot, "characters", "moss", "character.json")));
+		migratedPack.Validate();
+		Program.Check(migratedPack.Animations.Count == 28, "migrated pack validates with full motion set");
+		Program.Check(Character.MigrationDefaults().Animations.Count == 5, "migration defaults cover the new motions");
+
+		World ledges = MakeLedgeWorld();
+		Creature high = MakePet(ledges);
+		high.Position = new System.Numerics.Vector2(950f, 900f);
+		Program.Check(ConstructionWorld.TryFindSite(ledges, high.Position, 1f, "bean", out System.Numerics.Vector2 ledgeSite, out Surface? ledgeGround) && ledgeSite.Y < 1000f, "elevated ledge preferred for building");
+		Program.Check(high.Construction.StartBuild(ledges, high, settings, "bean", StructureKind.House, manual: true, seed: 21), "ledge build starts");
+		bool perched = false;
+		steps = 0;
+		while (high.Construction.HasSession && steps < 40000)
+		{
+			high.Step(1f / 120f, ledges, settings, personality, music: false);
+			steps++;
+			if (high.Support == 2L)
+			{
+				perched = true;
+			}
+		}
+		Program.Check(perched, "pet climbs to the ledge site");
+		Program.Check(high.Construction.Structures.Count == 1 && high.Construction.Structures[0].Finished, "ledge house finishes");
+		Structure small = high.Construction.Structures[0];
+		Program.Check(small.Width <= 100f, "house is small");
+		Program.Check(builder.Construction.StartBuild(world, builder, settings, "bean", StructureKind.House, manual: true, seed: 77, charWidth: 100f, charHeight: 90f), "big-species build starts");
+		Program.Check(builder.Construction.Active != null && builder.Construction.Active.Width > 140f && builder.Construction.Active.Width < 150f, "house scales with character size");
+		builder.Construction.Cancel();
+		Program.Check(high.Construction.Materials.Any(m => m.Kind == MaterialKind.Hammer && m.Placed), "hammer kept visible in the house");
+		Program.Check(high.Construction.Materials.Any(m => m.Kind == MaterialKind.Nail && m.Placed), "nail kept visible in the house");
+		small.Poke(1.0f, high.Time);
+		Program.Check(small.ShakeNow(high.Time) > 0f, "poked house shakes");
+		high.Construction.HouseHit(high, small);
+		Program.Check(high.Mood <= 0.3f, "hit makes the pet afraid");
+		high.Position = new System.Numerics.Vector2(small.Site.X + 400f, 1040f);
+		steps = 0;
+		while (steps < 3000 && !(high.Activity == Activity.Sit && System.Math.Abs(high.Position.X - small.Site.X) < 120f))
+		{
+			high.Step(1f / 120f, ledges, settings, personality, music: false);
+			steps++;
+		}
+		Program.Check(high.Activity == Activity.Sit, "frightened pet shelters at its house");
+
+		Creature planner = MakePet(ledges);
+		Program.Check(planner.Construction.StartBuildAt(ledges, planner, settings, "bean", StructureKind.Platform, new System.Numerics.Vector2(900f, 700f), manual: true, seed: 3), "build-here accepts a real ledge point");
+		planner.Construction.Cancel();
+		Program.Check(!planner.Construction.StartBuildAt(ledges, planner, settings, "bean", StructureKind.Platform, new System.Numerics.Vector2(900f, 300f), manual: true, seed: 3), "build-here rejects mid-air");
+		Program.Check(high.Construction.StartBuild(ledges, high, settings, "bean", StructureKind.Platform, manual: true, seed: 41), "second build starts");
+		Program.Check(high.Construction.Structures.Count == 0, "old house demolished for the new one");
+		high.Construction.Cancel();
 	}
 }
