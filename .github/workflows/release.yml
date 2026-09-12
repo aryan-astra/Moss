@@ -53,6 +53,7 @@ jobs:
             Write-Host "No release for $tag yet; proceeding with the build."
             'skip=false' >> $env:GITHUB_OUTPUT
           }
+          exit 0
 
       - name: Resolve and validate version
         if: steps.preskip.outputs.skip != 'true'
