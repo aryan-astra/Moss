@@ -7,7 +7,9 @@ using Moss.Core;
 
 namespace Moss.Windows;
 
-internal sealed class CreatureRenderer : IDisposable
+// CreatureRenderer paints the production creature bitmap. It is public so
+// headless verification harnesses can render exactly what the desktop shows.
+public sealed class CreatureRenderer : IDisposable
 {
 	private readonly Random commentsRandom = new Random();
 

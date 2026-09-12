@@ -264,6 +264,15 @@ internal sealed class SettingsForm : Form
 					{
 						app.Config.Advanced.SetMischief(v);
 					});
+					TextBlock("When you leave Moss alone for a while, it may go off on its own:");
+					IdleChoice("Climb after idle", app.Config.Advanced.ClimbIdleSec, delegate(float v)
+					{
+						app.Config.Advanced.ClimbIdleSec = v;
+					});
+					IdleChoice("Build after idle", app.Config.Advanced.BuildIdleSec, delegate(float v)
+					{
+						app.Config.Advanced.BuildIdleSec = v;
+					});
 				}
 				break;
 			case 'S':
@@ -736,6 +745,14 @@ internal sealed class SettingsForm : Form
 			{
 				playStatus.Text = app.LabBuild(StructureKind.House) ? "Building — watch it gather and hammer." : "No site or busy.";
 			});
+			Button("Build here", delegate
+			{
+				playStatus.Text = app.LabBuildAt(StructureKind.House) ? "Building at your cursor." : "No surface under cursor.";
+			});
+			Button("Test timer (5s)", delegate
+			{
+				playStatus.Text = app.LabQuickTimer();
+			});
 			list.Controls.Add(playStatus);
 			TextBlock("More: tray → Feature Lab… has every trigger, exact values, the event stream and the world inspector.");
 			break;
@@ -909,9 +926,47 @@ internal sealed class SettingsForm : Form
 		list.Controls.Add(button);
 	}
 
-	private void Choice<T>(string label, T value, Action<T> change) where T : struct, Enum
+	private void IdleChoice(string label, float seconds, Action<float> change)
 	{
+		string[] names = new string[5] { "30 seconds", "1 minute", "2 minutes", "5 minutes", "15 minutes" };
+		float[] values = new float[5] { 30f, 60f, 120f, 300f, 900f };
 		TextBlock(label);
+		ComboBox c = new ComboBox
+		{
+			Width = 250,
+			DropDownStyle = ComboBoxStyle.DropDownList,
+			Margin = new Padding(0, -10, 0, 16)
+		};
+		foreach (string item in names)
+		{
+			c.Items.Add(item);
+		}
+		int selected = 0;
+		float best = float.MaxValue;
+		for (int i = 0; i < values.Length; i++)
+		{
+			float distance = Math.Abs(values[i] - seconds);
+			if (distance < best)
+			{
+				best = distance;
+				selected = i;
+			}
+		}
+		c.SelectedIndex = selected;
+		c.SelectedIndexChanged += delegate
+		{
+			Safe(delegate
+			{
+				change(values[c.SelectedIndex]);
+				app.Config.Advanced.Preset = TimingPreset.Custom;
+				app.Save();
+			});
+		};
+		list.Controls.Add(c);
+	}
+
+	private void Choice<T>(string label, T value, Action<T> change) where T : struct, Enum
+	{		TextBlock(label);
 		ComboBox c = ChoiceControl.Create(value);
 		c.Width = 250;
 		c.Margin = new Padding(0, -10, 0, 16);
@@ -961,7 +1016,15 @@ internal sealed class SettingsForm : Form
 		};
 		if (openFileDialog.ShowDialog(this) == DialogResult.OK)
 		{
-			Character value = Character.Load(openFileDialog.FileName);
+			Character value;
+			try
+			{
+				value = Character.Load(openFileDialog.FileName);
+			}
+			catch (InvalidDataException)
+			{
+				value = MigrateCharacter(openFileDialog.FileName);
+			}
 			string text = Path.Combine(Paths.Root, "characters", Guid.NewGuid().ToString("N"));
 			Directory.CreateDirectory(text);
 			string text2 = Path.Combine(text, "character.json");
@@ -974,6 +1037,23 @@ internal sealed class SettingsForm : Form
 			app.Save();
 			Page("Customize");
 		}
+	}
+
+	private Character MigrateCharacter(string path)
+	{
+		Character? parsed = JsonSerializer.Deserialize<Character>(File.ReadAllText(path), Json.Options) ?? throw new InvalidDataException("Empty character.");
+		Character defaults;
+		try
+		{
+			defaults = Character.Load(Path.Combine(AppContext.BaseDirectory, "characters", "moss", "character.json"));
+		}
+		catch
+		{
+			defaults = Character.MigrationDefaults();
+		}
+		parsed.FillMissingClips(defaults);
+		parsed.Validate();
+		return parsed;
 	}
 
 	private void Safe(Action action)

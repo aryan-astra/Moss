@@ -8,6 +8,7 @@ using System.Linq;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -246,17 +247,36 @@ internal sealed class PetApplication : ApplicationContext
 		Reminders = new ReminderService(Documents, Config);
 		try
 		{
-			Character = Moss.Core.Character.Load(ActiveCharacterFile);
+			Character = LoadCharacterResilient(ActiveCharacterFile);
 		}
 		catch (Exception error2)
 		{
 			Log.Error("character-load", error2);
-			Character = Moss.Core.Character.Load(Paths.DefaultCharacter);
-			Config.CharacterPath = "";
-			Config.ActivePet = "moss";
+			Character? recovered = null;
+			string[] fallbacks = new string[7] { "moss", "miso", "pip", "lark", "inky", "clover", "puck" };
+			foreach (string id in fallbacks)
+			{
+				try
+				{
+					recovered = LoadCharacterResilient(Path.Combine(AppContext.BaseDirectory, "characters", id, "character.json"));
+					Config.CharacterPath = "";
+					Config.ActivePet = id;
+					break;
+				}
+				catch
+				{
+				}
+			}
+			if (recovered == null)
+			{
+				throw new InvalidDataException("No usable character pack was found. Extract the complete Moss archive into a local folder and try again.");
+			}
+			Character = recovered;
 			Config.PetScale = Config.Profile.Size;
 		}
 		Creature.Species = Character.Species;
+		Creature.CharWidth = Character.Width;
+		Creature.CharHeight = Character.Height;
 		animator = new Animator(Character);
 		renderer = new CreatureRenderer(Character);
 		sounds = new Sounds(Character.Sound, Config.SoundLevel);
@@ -366,6 +386,11 @@ internal sealed class PetApplication : ApplicationContext
 		timer = new FramePump(overlay);
 		props = new PropController(this);
 		construction = new ConstructionController(this);
+		construction.StructureClicked += delegate(Structure s)
+		{
+			Creature.Construction.HouseHit(Creature, s);
+			Events.Publish("house.hit", Creature.Time);
+		};
 		timer.Interval = 22.0;
 		timer.Tick += delegate
 		{
@@ -384,6 +409,43 @@ internal sealed class PetApplication : ApplicationContext
 		if (Config.ClosedAppReminders)
 		{
 			Reminders.Reconcile();
+		}
+	}
+
+	private Character LoadCharacterResilient(string path)
+	{
+		try
+		{
+			return Moss.Core.Character.Load(path);
+		}
+		catch (InvalidDataException)
+		{
+			Character? parsed;
+			try
+			{
+				parsed = JsonSerializer.Deserialize<Character>(File.ReadAllText(path), Json.Options);
+			}
+			catch (Exception error)
+			{
+				throw new InvalidDataException("Character pack is unreadable.", error);
+			}
+			if (parsed == null)
+			{
+				throw new InvalidDataException("Character pack is empty.");
+			}
+			parsed.FillMissingClips(Character.MigrationDefaults());
+			parsed.Validate();
+			try
+			{
+				File.Copy(path, path + ".migrated-bak", overwrite: true);
+				File.WriteAllText(path, JsonSerializer.Serialize(parsed, Json.Options));
+			}
+			catch (Exception saveError)
+			{
+				Log.Error("content-migrate-save", saveError);
+			}
+			Log.Event("content", "migrated");
+			return parsed;
 		}
 	}
 
@@ -420,6 +482,31 @@ internal sealed class PetApplication : ApplicationContext
 				sounds.Pop();
 			}
 		};
+	}
+
+	private static Image? trayLogo;
+
+	private static Image? TrayLogo()
+	{
+		if (trayLogo != null)
+		{
+			return trayLogo;
+		}
+		try
+		{
+			string path = Path.Combine(AppContext.BaseDirectory, "assets", "branding", "moss-logo.png");
+			if (!File.Exists(path))
+			{
+				return null;
+			}
+			using FileStream stream = File.OpenRead(path);
+			trayLogo = new Bitmap(Image.FromStream(stream), new Size(16, 16));
+			return trayLogo;
+		}
+		catch
+		{
+			return null;
+		}
 	}
 
 	private static Icon MakeIcon()
@@ -459,7 +546,8 @@ internal sealed class PetApplication : ApplicationContext
 		}
 		menu.Items.Add(new ToolStripMenuItem("Moss " + ProductVersion + " · " + PetName)
 		{
-			Enabled = false
+			Enabled = false,
+			Image = TrayLogo()
 		});
 		menu.Items.Add("Show Moss / recover position", null, delegate
 		{
@@ -498,6 +586,25 @@ internal sealed class PetApplication : ApplicationContext
 		menu.Items.Add("Feature Lab…", null, delegate
 		{
 			OpenFeatureLab();
+		});
+		menu.Items.Add(new ToolStripSeparator());
+		menu.Items.Add("Climb now", null, delegate
+		{
+			if (!LabClimbNearest())
+			{
+				tray.ShowBalloonTip(3000, "Moss", "No climbable edge in reach.", ToolTipIcon.Info);
+			}
+		});
+		menu.Items.Add("Build a house", null, delegate
+		{
+			if (!LabBuild(StructureKind.House))
+			{
+				tray.ShowBalloonTip(3000, "Moss", "No building site right now.", ToolTipIcon.Info);
+			}
+		});
+		menu.Items.Add("Roll a football", null, delegate
+		{
+			RollFootball();
 		});
 		menu.Items.Add("Now playing…", null, delegate
 		{
@@ -630,6 +737,8 @@ internal sealed class PetApplication : ApplicationContext
 			animator = new Animator(character);
 			Creature = new Creature();
 			Creature.Species = Character.Species;
+			Creature.CharWidth = Character.Width;
+			Creature.CharHeight = Character.Height;
 			WireCreature();
 			Creature.Reset(Observer.World);
 			Creature.Recall(Config.Profile.Memory, DateTimeOffset.UtcNow);
@@ -866,6 +975,10 @@ internal sealed class PetApplication : ApplicationContext
 				Metrics.RenderMs = stopwatch3.Elapsed.TotalMilliseconds;
 			}
 			props.AllowSurprises = !hidden && !Paused && policy != QuietPolicy.Calm && !TestMode;
+			if (!hidden && Config.Interaction)
+			{
+				Creature.Construction.PokeAt(world.Cursor, Creature.Time);
+			}
 			props.Draw(hidden);
 			construction.Draw(hidden);
 			TrackSessions();
@@ -999,9 +1112,34 @@ internal sealed class PetApplication : ApplicationContext
 		{
 			return false;
 		}
-		bool ok = Creature.Construction.StartBuild(Observer.World, Creature, Config, Character.Species, kind, manual: true);
+		bool hadHouse = Creature.Construction.Structures.Count > 0;
+		bool ok = Creature.Construction.StartBuild(Observer.World, Creature, Config, Character.Species, kind, manual: true, charWidth: Character.Width, charHeight: Character.Height);
 		if (ok)
 		{
+			if (hadHouse)
+			{
+				Events.Publish("construction.demolished", Creature.Time);
+			}
+			Creature.RequestActivity(Activity.Build, 90f);
+			Events.Publish("construction.started", Creature.Time);
+		}
+		return ok;
+	}
+
+	public bool LabBuildAt(StructureKind kind)
+	{
+		if (Creature.Held)
+		{
+			return false;
+		}
+		bool hadHouse = Creature.Construction.Structures.Count > 0;
+		bool ok = Creature.Construction.StartBuildAt(Observer.World, Creature, Config, Character.Species, kind, Observer.World.Cursor, manual: true, charWidth: Character.Width, charHeight: Character.Height);
+		if (ok)
+		{
+			if (hadHouse)
+			{
+				Events.Publish("construction.demolished", Creature.Time);
+			}
 			Creature.RequestActivity(Activity.Build, 90f);
 			Events.Publish("construction.started", Creature.Time);
 		}
@@ -1274,6 +1412,14 @@ internal sealed class PetApplication : ApplicationContext
 		Reminders.Create(preview, null);
 		Events.Publish("reminder.created", Creature.Time);
 		return "Test timer for " + preview.Due.ToLocalTime().ToString("HH:mm");
+	}
+
+	public string LabQuickTimer()
+	{
+		CommandPreview preview = NoteCommands.Parse("@timer 5s", DateTimeOffset.UtcNow, TimeZoneInfo.Local);
+		Reminders.Create(preview, null);
+		Events.Publish("reminder.created", Creature.Time);
+		return "Due in 5 seconds — watch the tray.";
 	}
 
 	public void LabTwigThrow(Vector2 velocity) => props.TwigThrow(velocity);

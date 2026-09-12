@@ -29,15 +29,17 @@ internal sealed class ConstructionController : IDisposable
 
 	private float sparkUntil;
 
-	private static readonly Color Wood = Color.FromArgb(169, 128, 80);
+	private Material? drag;
 
-	private static readonly Color DarkWood = Color.FromArgb(110, 79, 42);
+	private Vector2 dragOffset;
 
-	private static readonly Color NailGray = Color.FromArgb(154, 160, 166);
+	private Vector2 dragVelocity;
 
-	private static readonly Color HammerHead = Color.FromArgb(58, 68, 78);
+	private Vector2 lastCursor;
 
-	private static readonly Color HandleTan = Color.FromArgb(201, 162, 39);
+	private long lastCursorAt;
+
+	public event Action<Structure>? StructureClicked;
 
 	public ConstructionController(PetApplication owner)
 	{
@@ -49,12 +51,28 @@ internal sealed class ConstructionController : IDisposable
 		ConstructionWorld world = app.Creature.Construction;
 		if (hidden)
 		{
+			if (drag != null)
+			{
+				drag.Velocity = Vector2.Zero;
+				drag = null;
+			}
 			carry.Hide();
 			foreach (var entry in sites.Values)
 			{
 				entry.Overlay.Hide();
 			}
 			return;
+		}
+		if (drag != null)
+		{
+			Vector2 cursor = PetOverlay.CursorPhysical;
+			long now = Environment.TickCount64;
+			float dt = Math.Max(0.001f, (now - lastCursorAt) / 1000f);
+			dragVelocity = dragVelocity * 0.6f + ((cursor - lastCursor) / dt) * 0.4f;
+			lastCursor = cursor;
+			lastCursorAt = now;
+			drag.Position = cursor + dragOffset;
+			drag.Velocity = Vector2.Zero;
 		}
 		DrawCarried(world);
 		DrawSites(world);
@@ -90,7 +108,7 @@ internal sealed class ConstructionController : IDisposable
 			{
 				swing = MathF.Sin(world.SwingAngle * MathF.PI * 2f) * 0.7f;
 			}
-			DrawMaterial(graphics, held.Kind, swing);
+			StructureArt.DrawMaterial(graphics, held.Kind, swing);
 		}
 		carry.Draw(carryBitmap, held.Position, scale, app.PetAlpha, new Vector2(28f, 28f), true);
 		if (!carry.Visible)
@@ -143,146 +161,101 @@ internal sealed class ConstructionController : IDisposable
 					sites.Remove(structure.SurfaceId);
 				}
 				PetOverlay overlay = new PetOverlay(ownHotkey: false);
+				Structure captured = structure;
+				overlay.Clicked += delegate
+				{
+					StructureClicked?.Invoke(captured);
+				};
+				overlay.GrabStarted += delegate(Vector2 point)
+				{
+					BeginDrag(point);
+				};
+				overlay.Released += delegate
+				{
+					EndDrag();
+				};
 				Bitmap canvas = new Bitmap(pw, ph, PixelFormat.Format32bppPArgb);
 				view = (overlay, canvas, w, h);
 				sites[structure.SurfaceId] = view;
 			}
+			float tremble = structure.ShakeNow(app.Creature.Time);
+			float shakeX = tremble > 0f ? MathF.Sin((float)app.Creature.Time * 40f) * 6f * tremble : 0f;
 			using (Graphics graphics = Graphics.FromImage(view.Canvas))
 			{
 				graphics.Clear(Color.Transparent);
 				graphics.SmoothingMode = SmoothingMode.AntiAlias;
 				graphics.ScaleTransform(scale, scale);
-				graphics.TranslateTransform(w / 2f, h - 12f);
-				DrawStructure(graphics, structure);
+				graphics.TranslateTransform(w / 2f + shakeX, h - 32f);
+				StructureArt.DrawStructure(graphics, structure, app.Character.Accent);
+				foreach (Material tool in world.Materials.Where(m => m.Placed && (m.Kind == MaterialKind.Hammer || m.Kind == MaterialKind.Nail) && Math.Abs(m.Position.X - structure.Site.X) < structure.Width && Math.Abs(m.Position.Y - structure.Site.Y) < structure.Height + 20f))
+				{
+					GraphicsState kept = graphics.Save();
+					graphics.TranslateTransform(tool.Position.X - structure.Site.X, tool.Position.Y - structure.Site.Y - 4f);
+					if (tool.Kind == MaterialKind.Hammer)
+					{
+						graphics.RotateTransform(72f);
+					}
+					StructureArt.DrawMaterial(graphics, tool.Kind, 0f);
+					graphics.Restore(kept);
+				}
 				if (world.Active == structure && world.Phase == BuildPhase.Hammer && app.Creature.Time < sparkUntil)
 				{
-					DrawSpark(graphics, world.NailPoint - new Vector2(structure.Site.X, structure.Site.Y));
+					StructureArt.DrawSpark(graphics, world.NailPoint - new Vector2(structure.Site.X, structure.Site.Y));
 				}
 			}
 			Vector2 at = new Vector2(structure.Site.X, structure.Site.Y - structure.Height / 2f - 8f * scale);
 			view.Overlay.Draw(view.Canvas, at, scale, app.PetAlpha, new Vector2(w / 2f, h / 2f), true);
+			view.Overlay.BringToFront();
 			if (!view.Overlay.Visible)
 			{
-				view.Overlay.Configure(interaction: false, app.Config.ExcludeFromCapture);
+				view.Overlay.Configure(interaction: true, app.Config.ExcludeFromCapture);
 				view.Overlay.Show();
 			}
 			view.Overlay.CheckCapture();
 		}
 	}
 
-	private void DrawMaterial(Graphics g, MaterialKind kind, float swing)
+	private void BeginDrag(Vector2 cursor)
 	{
-		switch (kind)
+		float scale = app.Creature.Scale;
+		Material? best = null;
+		float bestDist = 34f * scale;
+		foreach (Material material in app.Creature.Construction.Materials)
 		{
-		case MaterialKind.Plank:
-			using (SolidBrush brush = new SolidBrush(Wood))
-			using (Pen pen = new Pen(DarkWood, 1.4f))
+			if (material.Kind != MaterialKind.Hammer && material.Kind != MaterialKind.Nail)
 			{
-				g.FillRoundedRectangle(brush, new RectangleF(-18f, -4.5f, 36f, 9f), 2f);
-				g.DrawLine(pen, -18f, 0f, 18f, 0f);
-				g.DrawLine(pen, -14f, -4.5f, -14f, 4.5f);
-				g.DrawLine(pen, 14f, -4.5f, 14f, 4.5f);
+				continue;
 			}
-			break;
-		case MaterialKind.Stick:
-			using (Pen pen2 = new Pen(DarkWood, 3f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+			float distance = Vector2.Distance(material.Position, cursor);
+			if (distance < bestDist)
 			{
-				g.DrawLine(pen2, -15f, 4f, 13f, -5f);
+				bestDist = distance;
+				best = material;
 			}
-			using (SolidBrush brush2 = new SolidBrush(Wood))
-			{
-				g.FillEllipse(brush2, 11f, -8f, 5f, 5f);
-			}
-			break;
-		case MaterialKind.Nail:
-			using (Pen pen3 = new Pen(NailGray, 2f))
-			{
-				g.DrawLine(pen3, 0f, -6f, 0f, 6f);
-			}
-			using (SolidBrush brush3 = new SolidBrush(NailGray))
-			{
-				g.FillEllipse(brush3, -2.5f, -8.5f, 5f, 3f);
-			}
-			break;
-		case MaterialKind.Panel:
-			using (SolidBrush brush4 = new SolidBrush(Wood))
-			using (Pen pen4 = new Pen(DarkWood, 1.4f))
-			{
-				g.FillRoundedRectangle(brush4, new RectangleF(-20f, -8f, 40f, 16f), 2f);
-				g.DrawRectangle(pen4, -20, -8, 40, 16);
-				g.DrawLine(pen4, 0f, -8f, 0f, 8f);
-			}
-			break;
-		default:
-			GraphicsState state = g.Save();
-			g.RotateTransform(swing * 57f);
-			using (Pen pen5 = new Pen(HandleTan, 4f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
-			{
-				g.DrawLine(pen5, 0f, 12f, 0f, -10f);
-			}
-			using (SolidBrush brush5 = new SolidBrush(HammerHead))
-			{
-				g.FillRoundedRectangle(brush5, new RectangleF(-9f, -18f, 18f, 9f), 2f);
-			}
-			g.Restore(state);
-			break;
 		}
+		if (best == null)
+		{
+			return;
+		}
+		best.Carried = false;
+		best.Placed = false;
+		drag = best;
+		dragOffset = best.Position - cursor;
+		lastCursor = cursor;
+		lastCursorAt = Environment.TickCount64;
+		dragVelocity = Vector2.Zero;
+		app.Events.Publish("object.grabbed", app.Creature.Time);
 	}
 
-	private void DrawStructure(Graphics g, Structure structure)
+	private void EndDrag()
 	{
-		float half = structure.Width / 2f;
-		using (SolidBrush slab = new SolidBrush(DarkWood))
+		if (drag == null)
 		{
-			g.FillRoundedRectangle(slab, new RectangleF(-half, -7f, structure.Width, 9f), 2f);
+			return;
 		}
-		if (structure.Stage >= 1)
-		{
-			using (Pen walls = new Pen(Wood, 6f) { StartCap = LineCap.Square, EndCap = LineCap.Square })
-			{
-				g.DrawLine(walls, -half + 6f, -7f, -half + 6f, -structure.Height * 0.55f);
-				g.DrawLine(walls, half - 6f, -7f, half - 6f, -structure.Height * 0.55f);
-			}
-		}
-		if (structure.Stage >= 2)
-		{
-			using (SolidBrush panels = new SolidBrush(Color.FromArgb(190, 150, 100)))
-			{
-				g.FillRectangle(panels, -half + 9f, -structure.Height * 0.55f, structure.Width - 18f, 7f);
-			}
-			if (structure.Kind == StructureKind.House)
-			{
-				using (SolidBrush trim = new SolidBrush(ColorTranslator.FromHtml(app.Character.Accent)))
-				{
-					g.FillRectangle(trim, -7f, -structure.Height * 0.42f, 14f, structure.Height * 0.42f - 7f);
-				}
-			}
-		}
-		if (structure.Finished)
-		{
-			PointF[] roof = { new PointF(-half - 6f, -structure.Height * 0.55f), new PointF(half + 6f, -structure.Height * 0.55f), new PointF(0f, -structure.Height - 8f) };
-			using (SolidBrush brush = new SolidBrush(DarkWood))
-			{
-				g.FillPolygon(brush, roof);
-			}
-			using (Pen pen = new Pen(Wood, 2f))
-			{
-				g.DrawPolygon(pen, roof);
-			}
-		}
-	}
-
-	private void DrawSpark(Graphics g, Vector2 at)
-	{
-		using (Pen pen = new Pen(Color.FromArgb(230, 220, 160), 2f))
-		{
-			for (int i = 0; i < 4; i++)
-			{
-				float angle = i * (float)Math.PI / 4f;
-				Vector2 dir = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
-				g.DrawLine(pen, at.X - dir.X * 3f, at.Y - dir.Y * 3f, at.X + dir.X * 9f, at.Y + dir.Y * 9f);
-			}
-		}
+		drag.Velocity = Vector2.Clamp(dragVelocity, new Vector2(-1600f), new Vector2(1600f));
+		drag = null;
+		app.Events.Publish("object.thrown", app.Creature.Time);
 	}
 
 	public void Dispose()

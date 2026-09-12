@@ -450,6 +450,7 @@ internal sealed class FeatureLabForm : Form
 		Act("Build house", "build house hut shelter construct", "Run the full production house build.", () => { Status(app.LabBuild(StructureKind.House) ? "Building a house." : "No site or busy."); });
 		Act("Build platform", "build platform deck stage", "Run the full production platform build.", () => { Status(app.LabBuild(StructureKind.Platform) ? "Building a platform." : "No site or busy."); });
 		Act("Build stick structure", "build stick lattice twigs", "Run the full production stick build.", () => { Status(app.LabBuild(StructureKind.StickStructure) ? "Building sticks." : "No site or busy."); });
+		Act("Build here", "build here cursor mouse place where", "Start a house where your cursor is right now.", () => { Status(app.LabBuildAt(StructureKind.House) ? "Building here." : "No surface under cursor."); });
 		Act("Test hammer", "hammer test swing mallet", "Put a hammer in hand and swing at the current site.", () => { Status(app.LabTestHammer() ? "Hammering." : "No site or busy."); });
 		Act("Test nail", "nail test fasten spark", "Drive one nail with a spark at the current site.", () => { Status(app.LabTestNail() ? "Nail driven." : "No site or busy."); });
 		Act("Test material pickup", "material pickup plank carry give", "Hand the pet a plank to carry.", () => { Status(app.LabGiveMaterial() ? "Plank in hand." : "Could not spawn."); });
@@ -473,6 +474,7 @@ internal sealed class FeatureLabForm : Form
 		Act("Spawn stick", "spawn stick twig material", "Drop a loose stick near the pet.", () => { Status(app.LabSpawnMaterial(MaterialKind.Stick) ? "Stick spawned." : "Could not spawn."); });
 		Act("Spawn hammer", "spawn hammer mallet tool", "Drop a loose hammer near the pet.", () => { Status(app.LabSpawnMaterial(MaterialKind.Hammer) ? "Hammer spawned." : "Could not spawn."); });
 		Act("Give object to pet", "give hold carry object pet", "Hand the nearest loose material to the pet.", () => { Status(app.LabGiveMaterial() ? "Pet holds it." : "Nothing to give."); });
+		Para("Tip: grab the hammer or a nail right off a built house with your mouse and throw it. A plain click on the house only knocks.");
 	}
 
 	private void EmotionPage()
@@ -541,6 +543,7 @@ internal sealed class FeatureLabForm : Form
 		Para("Notebook and reminders use the production store and scheduler paths.");
 		Act("Open notebook", "notebook notes open", "Open the real notebook window.", () => { app.OpenNotebook(); Status("Notebook opened."); });
 		Act("New 5-minute test timer", "timer test reminder create", "Create a real 5-minute timer through the command grammar.", () => { Status(app.LabTestTimer()); });
+		Act("Fire 5-second proof timer", "timer proof test seconds due fast", "Create a timer due in 5 seconds through the full pipeline.", () => { Status(app.LabQuickTimer()); });
 		Act("Refresh reminders", "reminders list refresh show", "List pending and due reminders below.", () => { RefreshReminders(); });
 		reminderList = new ListBox { Width = 700, Height = 110, Font = smallFont };
 		list.Controls.Add(reminderList);
@@ -673,6 +676,8 @@ internal sealed class FeatureLabForm : Form
 		Num("Build cooldown (s)", 0f, 14400f, 0, () => app.Config.Advanced.BuildCooldownSec, v => app.Config.Advanced.BuildCooldownSec = v, AdvancedSettings.Help["BuildCooldownSec"]);
 		Num("Build interval min (s)", 300f, 7200f, 0, () => app.Config.Advanced.BuildIntervalMinSec, v => app.Config.Advanced.BuildIntervalMinSec = v, AdvancedSettings.Help["BuildIntervalMinSec"]);
 		Num("Build interval max (s)", 600f, 14400f, 0, () => app.Config.Advanced.BuildIntervalMaxSec, v => app.Config.Advanced.BuildIntervalMaxSec = v, AdvancedSettings.Help["BuildIntervalMaxSec"]);
+		Num("Climb after idle (s)", 0f, 3600f, 0, () => app.Config.Advanced.ClimbIdleSec, v => app.Config.Advanced.ClimbIdleSec = v, AdvancedSettings.Help["ClimbIdleSec"]);
+		Num("Build after idle (s)", 0f, 7200f, 0, () => app.Config.Advanced.BuildIdleSec, v => app.Config.Advanced.BuildIdleSec = v, AdvancedSettings.Help["BuildIdleSec"]);
 		Num("Structure lifetime (min)", 5f, 180f, 0, () => app.Config.Advanced.StructureLifetimeMin, v => app.Config.Advanced.StructureLifetimeMin = v, AdvancedSettings.Help["StructureLifetimeMin"]);
 		Num("Rare-event probability", 0f, 1f, 3, () => app.Config.Advanced.RareEventProbability, v => app.Config.Advanced.RareEventProbability = v, AdvancedSettings.Help["RareEventProbability"]);
 		Num("Idle decision min (s)", 1f, 30f, 1, () => app.Config.Advanced.WanderDecisionMinSec, v => app.Config.Advanced.WanderDecisionMinSec = v, AdvancedSettings.Help["WanderDecisionMinSec"]);
@@ -728,6 +733,8 @@ internal sealed class FeatureLabForm : Form
 		a.BuildCooldownSec = d.BuildCooldownSec;
 		a.BuildIntervalMinSec = d.BuildIntervalMinSec;
 		a.BuildIntervalMaxSec = d.BuildIntervalMaxSec;
+		a.ClimbIdleSec = d.ClimbIdleSec;
+		a.BuildIdleSec = d.BuildIdleSec;
 		a.StructureLifetimeMin = d.StructureLifetimeMin;
 		a.RareEventProbability = d.RareEventProbability;
 		a.WanderDecisionMinSec = d.WanderDecisionMinSec;

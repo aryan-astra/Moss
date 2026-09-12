@@ -96,6 +96,13 @@ internal sealed class NotebookForm : Form
 	public NotebookForm(PetApplication owner)
 	{
 		app = owner;
+		try
+		{
+			Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+		}
+		catch
+		{
+		}
 		notes = (from n in app.Documents.LoadAll("notes", delegate(Note n)
 			{
 				n.Validate();
