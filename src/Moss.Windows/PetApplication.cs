@@ -221,7 +221,6 @@ internal sealed class PetApplication : ApplicationContext
 			Config.Visible = true;
 		}
 		Config.PetScale = Config.Profile.Size;
-		Creature.Species = Character.Species;
 		Documents = new DocumentStore(Path.Combine(Paths.Root, "notebook"));
 		Reminders = new ReminderService(Documents, Config);
 		try
@@ -236,6 +235,7 @@ internal sealed class PetApplication : ApplicationContext
 			Config.ActivePet = "moss";
 			Config.PetScale = Config.Profile.Size;
 		}
+		Creature.Species = Character.Species;
 		animator = new Animator(Character);
 		renderer = new CreatureRenderer(Character);
 		sounds = new Sounds(Character.Sound, Config.SoundLevel);
