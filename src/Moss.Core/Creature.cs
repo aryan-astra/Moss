@@ -29,6 +29,12 @@ public sealed class Creature
 
 	private Vector2 lastCursor;
 
+	private Vector2 lastUserCursor;
+
+	private bool userCursorInit;
+
+	private double lastActiveTime;
+
 	private bool justReleased;
 
 	private bool wasPlaying;
@@ -56,6 +62,10 @@ public sealed class Creature
 	public ConstructionWorld Construction { get; } = new ConstructionWorld();
 
 	public string Species { get; set; } = "bean";
+
+	public float CharWidth { get; set; } = 66f;
+
+	public float CharHeight { get; set; } = 74f;
 
 	public bool AutonomyEnabled { get; set; } = true;
 
@@ -117,6 +127,8 @@ public sealed class Creature
 	public Motion Motion { get; private set; }
 
 	public double Time { get; private set; }
+
+	public double IdleSeconds => Time - lastActiveTime;
 
 	public float TargetX { get; private set; }
 
@@ -191,6 +203,7 @@ public sealed class Creature
 		Attention = Math.Max(0f, Attention - 0.25f);
 		reactionIn = 1.3f;
 		pettedIn = 1.3f;
+		lastActiveTime = Time;
 		this.Petted?.Invoke();
 	}
 
@@ -211,6 +224,7 @@ public sealed class Creature
 		climbTarget = null;
 		EndClimbSession();
 		lastCursor = cursor;
+		lastActiveTime = Time;
 		Velocity *= 0.25f;
 	}
 
@@ -218,6 +232,7 @@ public sealed class Creature
 	{
 		Held = false;
 		justReleased = true;
+		lastActiveTime = Time;
 		float clamp = 1800f * Scale * Math.Clamp(power, 0.3f, 2.5f);
 		Velocity = Vector2.Clamp(Velocity, new Vector2(-clamp, -clamp), new Vector2(clamp, clamp));
 	}
@@ -225,6 +240,11 @@ public sealed class Creature
 	internal void SetSupport(long? id)
 	{
 		Support = id;
+	}
+
+	internal void SetClimbTarget(Surface? surface)
+	{
+		climbTarget = surface;
 	}
 
 	internal void SetTargetX(float x)
@@ -355,12 +375,17 @@ public sealed class Creature
 
 	private IEnumerable<Surface> Reachable(World w)
 	{
-		return w.Surfaces.Where((Surface s) => !s.Floor && s.Id != Support && s.Y < Position.Y - 20f * Scale && s.Y > Position.Y - 320f * Scale && s.Right - s.Left > 65f * Scale && Math.Min(Math.Abs(s.Left - Position.X), Math.Abs(s.Right - Position.X)) < 350f * Scale);
+		float headroom = (w.Displays.Count > 0 ? w.Displays.Min((Display d) => d.Bounds.Y) : float.MinValue) + 150f * Scale;
+		return w.Surfaces.Where((Surface s) => !s.Floor && s.Id != Support && s.Y > headroom && s.Y < Position.Y - 20f * Scale && s.Y > Position.Y - 320f * Scale && s.Right - s.Left > 65f * Scale && Math.Min(Math.Abs(s.Left - Position.X), Math.Abs(s.Right - Position.X)) < 350f * Scale);
 	}
 
 	private float EdgeClimbScore(World w, Settings settings, Personality p)
 	{
 		if (settings.Advanced.ClimbFrequency == Frequency.Off || !Support.HasValue || !settings.WindowGeometry || Time < NextClimbAt)
+		{
+			return 0f;
+		}
+		if (settings.Advanced.ClimbIdleSec > 0f && Time - lastActiveTime < settings.Advanced.ClimbIdleSec)
 		{
 			return 0f;
 		}
@@ -377,11 +402,20 @@ public sealed class Creature
 		{
 			return 0f;
 		}
+		if (settings.Advanced.BuildIdleSec > 0f && Time - lastActiveTime < settings.Advanced.BuildIdleSec)
+		{
+			return 0f;
+		}
 		if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - settings.Advanced.LastBuildUnix < settings.Advanced.BuildCooldownSec)
 		{
 			return 0f;
 		}
-		return Curiosity * p.Curiosity * (0.15f + 0.5f * Mood) * (Energy > 0.3f ? 1f : 0.1f);
+		float score = Curiosity * p.Curiosity * (0.15f + 0.5f * Mood) * (Energy > 0.3f ? 1f : 0.1f);
+		if (settings.Advanced.LastBuildUnix <= 0)
+		{
+			score *= 2.5f;
+		}
+		return score;
 	}
 
 	private void Decide(World w, Settings settings, Personality p, bool music)
@@ -460,7 +494,7 @@ public sealed class Creature
 			if (key == Activity.Build)
 			{
 				StructureKind kind = random.NextDouble() < 0.7 ? StructureKind.House : (random.NextDouble() < 0.65 ? StructureKind.Platform : StructureKind.StickStructure);
-				if (!Construction.StartBuild(w, this, settings, Species, kind, manual: false))
+				if (!Construction.StartBuild(w, this, settings, Species, kind, manual: false, charWidth: CharWidth, charHeight: CharHeight))
 				{
 					key = Activity.Wander;
 					Activity = key;
@@ -610,6 +644,16 @@ public sealed class Creature
 			}
 		}
 		awarenessCursor = w.Cursor;
+		if (!userCursorInit)
+		{
+			lastUserCursor = w.Cursor;
+			userCursorInit = true;
+		}
+		if (Vector2.Distance(w.Cursor, lastUserCursor) > 40f * Scale)
+		{
+			lastUserCursor = w.Cursor;
+			lastActiveTime = Time;
+		}
 		nextHop -= dt;
 		if (music && Activity == Activity.Dance && nextHop <= 0f && surface != null && surface.Supports(Position.X, 45f * Scale) && !calm && !settings.ReducedMotion && Tug < 0.05f)
 		{

@@ -102,7 +102,15 @@ public sealed class ClimbSession
 
 	private bool slipPlanned;
 
+	private float airTime;
+
 	private float agility = 1f;
+
+	private const float EdgeInset = 44f;
+
+	private const float GripLead = 12f;
+
+	private const float TopClearance = 150f;
 
 	public bool SuppressLocomotion
 	{
@@ -223,6 +231,7 @@ public sealed class ClimbSession
 		{
 			return false;
 		}
+		c.Construction.ClearShelter();
 		if (!TryFindEdge(w, c.Position, c.Scale, out ClimbEdge found, preferLeft, manual ? 2400f : 500f))
 		{
 			return false;
@@ -249,9 +258,11 @@ public sealed class ClimbSession
 		Route.Clear();
 		retries = 0;
 		hopCount = 0;
+		airTime = 0f;
 		descending = false;
 		Succeeded = false;
-		SetPhase(ClimbPhase.ApproachEdge, 10f);
+		float approachBudget = Math.Clamp(6f + Math.Abs(c.Position.X - found.X) / 55f, 10f, 30f);
+		SetPhase(ClimbPhase.ApproachEdge, approachBudget);
 		return true;
 	}
 
@@ -402,14 +413,23 @@ public sealed class ClimbSession
 		{
 		case ClimbPhase.ApproachEdge:
 		{
-			c.SetTargetX(Edge.X + Edge.Inward * 20f * scale);
+			float holdX = Edge.X + Edge.Inward * EdgeInset * scale;
+			c.SetTargetX(holdX);
 			c.SetMotionOverride(null);
-			if (Math.Abs(c.Position.X - Edge.X) < 30f * scale && c.Support.HasValue)
+			if (c.Support.HasValue)
+			{
+				airTime = 0f;
+			}
+			else
+			{
+				airTime += dt;
+			}
+			if (Math.Abs(c.Position.X - holdX) < 24f * scale && c.Support.HasValue)
 			{
 				c.SetFacing(Edge.Inward > 0f ? -1 : 1);
 				SetPhase(ClimbPhase.PrepareClimb, 3f);
 			}
-			else if (phaseTime > phaseLimit || !c.Support.HasValue && phaseTime > 2f)
+			else if (phaseTime > phaseLimit || airTime > 2.5f)
 			{
 				Finish(c, s, completed: false);
 			}
@@ -428,7 +448,7 @@ public sealed class ClimbSession
 		}
 		case ClimbPhase.Reach:
 		{
-			GripPoint = new Vector2(Edge.X, c.Position.Y - 55f * scale);
+			GripPoint = new Vector2(Edge.X + Edge.Inward * GripLead * scale, c.Position.Y - 55f * scale);
 			RouteAdd(GripPoint);
 			c.SetHandTarget(GripPoint);
 			c.SetMotionOverride(null);
@@ -443,7 +463,7 @@ public sealed class ClimbSession
 		{
 			c.SetHandTarget(GripPoint);
 			c.SetMotionOverride(Motion.Hanging);
-			c.SetVelocity(new Vector2((GripPoint.X + Edge.Inward * 8f * scale - c.Position.X) * 8f, c.Velocity.Y * 0.5f));
+			c.SetVelocity(new Vector2((Edge.X + Edge.Inward * EdgeInset * scale - c.Position.X) * 8f, c.Velocity.Y * 0.5f));
 			if (phaseTime >= 0.35f)
 			{
 				gripY = GripPoint.Y;
@@ -455,7 +475,7 @@ public sealed class ClimbSession
 		case ClimbPhase.Hang:
 		{
 			float bodyLen = 62f * scale;
-			Vector2 target = new Vector2(Edge.X + Edge.Inward * 8f * scale + MathF.Sin((float)c.Time * 2f) * 3f * scale, gripY + bodyLen);
+			Vector2 target = new Vector2(Edge.X + Edge.Inward * EdgeInset * scale + MathF.Sin((float)c.Time * 2f) * 3f * scale, gripY + bodyLen);
 			c.SetVelocity((target - c.Position) * 6f);
 			c.SetHandTarget(new Vector2(Edge.X, gripY));
 			c.SetMotionOverride(pauseLook && phaseTime > phaseLimit * 0.5f ? Motion.Peeking : Motion.Hanging);
@@ -472,9 +492,9 @@ public sealed class ClimbSession
 		}
 		case ClimbPhase.PullUp:
 		{
-			Vector2 over = new Vector2(Edge.X + Edge.Inward * 12f * scale, gripY - 26f * scale);
+			Vector2 over = new Vector2(Edge.X + Edge.Inward * EdgeInset * scale, gripY - 26f * scale);
 			c.SetVelocity((over - c.Position) * 5f);
-			c.SetHandTarget(new Vector2(Edge.X, gripY - 10f * scale));
+			c.SetHandTarget(new Vector2(Edge.X + Edge.Inward * GripLead * scale, gripY - 10f * scale));
 			c.SetMotionOverride(Motion.Climbing);
 			if (phaseTime >= 0.7f || Vector2.Distance(c.Position, over) < 12f * scale)
 			{
@@ -503,11 +523,11 @@ public sealed class ClimbSession
 					c.SetVelocity(new Vector2(c.Velocity.X, -120f * scale));
 				}
 			}
-			Vector2 bodyTarget = new Vector2(Edge.X + Edge.Inward * 10f * scale, gripY + 40f * scale);
+			Vector2 bodyTarget = new Vector2(Edge.X + Edge.Inward * EdgeInset * scale, gripY + 40f * scale);
 			c.SetVelocity((bodyTarget - c.Position) * 5f);
 			c.SetHandTarget(GripPoint);
 			c.SetMotionOverride(Motion.Climbing);
-			if (!descending && c.Position.Y <= Edge.Top + 44f * scale)
+			if (!descending && c.Position.Y <= Edge.Top + TopClearance * scale)
 			{
 				Succeeded = true;
 				SetPhase(ClimbPhase.CornerTransition, 5f);
@@ -524,9 +544,9 @@ public sealed class ClimbSession
 		}
 		case ClimbPhase.CornerTransition:
 		{
-			c.SetHandTarget(Edge.Corner);
+			c.SetHandTarget(new Vector2(Edge.X + Edge.Inward * GripLead * scale, Edge.Top + TopClearance * scale));
 			c.SetMotionOverride(Motion.Peeking);
-			c.SetVelocity((new Vector2(Edge.X + Edge.Inward * 10f * scale, Edge.Top + 30f * scale) - c.Position) * 4f);
+			c.SetVelocity((new Vector2(Edge.X + Edge.Inward * EdgeInset * scale, Edge.Top + TopClearance * scale) - c.Position) * 4f);
 			if (phaseTime >= 1f)
 			{
 				float roll = (float)(GripPoint.X * 0.37 + c.Position.Y * 0.73 + c.Time) % 1f;
@@ -553,7 +573,7 @@ public sealed class ClimbSession
 		}
 		case ClimbPhase.TopTransition:
 		{
-			Vector2 top = new Vector2(Edge.X + Edge.Inward * 26f * scale, Edge.Top - 2f * scale);
+			Vector2 top = new Vector2(Edge.X + Edge.Inward * EdgeInset * scale, Edge.Top + TopClearance * scale);
 			c.SetVelocity((top - c.Position) * 5f);
 			c.SetHandTarget(null);
 			c.SetMotionOverride(Motion.Climbing);
@@ -567,8 +587,8 @@ public sealed class ClimbSession
 		case ClimbPhase.Balance:
 		{
 			Display? near = w.Nearest(c.Position);
-			float minX = (near != null ? near.Bounds.X : Edge.X) + 30f * scale;
-			float maxX = (near != null ? near.Bounds.Right : Edge.X + Edge.Inward * 200f * scale) - 30f * scale;
+			float minX = (near != null ? near.Bounds.X : Edge.X) + EdgeInset * scale;
+			float maxX = (near != null ? near.Bounds.Right : Edge.X + Edge.Inward * 200f * scale) - EdgeInset * scale;
 			if (minX > maxX)
 			{
 				float swap = minX;
@@ -580,7 +600,7 @@ public sealed class ClimbSession
 			{
 				c.SetFacing(-c.Facing);
 			}
-			Vector2 hold = new Vector2(nx, Edge.Top - 2f * scale);
+			Vector2 hold = new Vector2(nx, Edge.Top + TopClearance * scale);
 			c.SetVelocity((hold - c.Position) * 6f);
 			c.SetBalance(MathF.Sin((float)c.Time * 3f) * 4f);
 			c.SetMotionOverride(pauseLook && phaseTime > phaseLimit * 0.5f ? Motion.Peeking : Motion.Balancing);
@@ -612,7 +632,7 @@ public sealed class ClimbSession
 		{
 			c.SetHandTarget(GripPoint);
 			c.SetMotionOverride(Motion.Hanging);
-			c.SetVelocity((new Vector2(GripPoint.X + Edge.Inward * 8f * scale, GripPoint.Y + 62f * scale) - c.Position) * 5f);
+			c.SetVelocity((new Vector2(Edge.X + Edge.Inward * EdgeInset * scale, GripPoint.Y + 62f * scale) - c.Position) * 5f);
 			if (phaseTime >= 0.6f)
 			{
 				SetPhase(ClimbPhase.Grip, 2f);

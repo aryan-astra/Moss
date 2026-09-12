@@ -111,6 +111,25 @@ public sealed class Structure
 
 	public bool Finished => Stage >= StagesTotal;
 
+	public float Shake { get; private set; }
+
+	public double ShakeUntil { get; private set; }
+
+	public void Poke(float strength, double now)
+	{
+		Shake = Math.Clamp(strength, 0f, 1f);
+		ShakeUntil = now + 0.9;
+	}
+
+	public float ShakeNow(double now)
+	{
+		if (now >= ShakeUntil)
+		{
+			return 0f;
+		}
+		return Shake * (float)(ShakeUntil - now);
+	}
+
 	public bool Expired(double now)
 	{
 		return Finished && now - BornAt > LifetimeSec;
@@ -168,8 +187,7 @@ public sealed class ConstructionWorld
 	public bool HasSession => Phase != BuildPhase.None && Phase != BuildPhase.Done;
 
 	public static string StyleFor(string species, StructureKind kind)
-	{
-		return (species, kind) switch
+	{		return (species, kind) switch
 		{
 			("cat", _) => "cozy shelter",
 			("dog", _) => "playful fort",
@@ -183,6 +201,12 @@ public sealed class ConstructionWorld
 		};
 	}
 
+	public static bool TryFindSite(World w, Vector2 pos, float scale, string species, out Vector2 site)
+	{
+		bool found = TryFindSite(w, pos, scale, species, out site, out _);
+		return found;
+	}
+
 	public static bool TryFindSite(World w, Vector2 pos, float scale, string species, out Vector2 site, out Surface? ground)
 	{
 		site = pos;
@@ -192,19 +216,14 @@ public sealed class ConstructionWorld
 		{
 			return false;
 		}
-		float need = (species == "octopus" ? 200f : 150f) * scale;
+		float need = (species == "octopus" ? 150f : 110f) * scale;
+		float headroom = (w.Displays.Count > 0 ? w.Displays.Min((Display d) => d.Bounds.Y) : float.MinValue) + 150f * scale;
+		var elevated = w.Surfaces.Where(s => !s.Floor && s.Right - s.Left > need && s.Y > headroom && s.Y < pos.Y - 60f * scale && s.Y > pos.Y - 480f * scale).ToList();
 		var floors = w.Surfaces.Where(s => s.Floor && s.Right - s.Left > need).ToList();
-		if (species == "bird")
-		{
-			var ledges = w.Surfaces.Where(s => !s.Floor && s.Right - s.Left > need && s.Y < display.Work.Bottom - 120f * scale).ToList();
-			if (ledges.Count > 0)
-			{
-				floors.InsertRange(0, ledges);
-			}
-		}
+		var candidates = elevated.Count > 0 ? elevated : floors;
 		Surface? best = null;
 		float bestScore = float.MaxValue;
-		foreach (Surface surface in floors)
+		foreach (Surface surface in candidates)
 		{
 			float cx = Math.Clamp(pos.X, surface.Left + need / 2f, surface.Right - need / 2f);
 			float score = Math.Abs(cx - pos.X) + Math.Abs(surface.Y - pos.Y) * 0.4f;
@@ -219,7 +238,21 @@ public sealed class ConstructionWorld
 		return best != null;
 	}
 
-	public bool StartBuild(World w, Creature c, Settings s, string species, StructureKind kind, bool manual, int seed = 0)
+	public static float StructureWidth(StructureKind kind, float charWidth, string species)
+	{
+		float logical = kind == StructureKind.Platform ? charWidth * 2.2f : kind == StructureKind.StickStructure ? charWidth * 1.2f : charWidth * 1.45f;
+		float floor = kind == StructureKind.Platform ? 120f : kind == StructureKind.StickStructure ? 80f : 88f;
+		return Math.Max(logical, floor) * (species == "octopus" ? 1.25f : 1f);
+	}
+
+	public static float StructureHeight(StructureKind kind, float charHeight)
+	{
+		float logical = kind == StructureKind.Platform ? 22f : kind == StructureKind.StickStructure ? charHeight * 0.9f : charHeight;
+		float floor = kind == StructureKind.Platform ? 22f : kind == StructureKind.StickStructure ? 56f : 64f;
+		return Math.Max(logical, floor);
+	}
+
+	public bool StartBuild(World w, Creature c, Settings s, string species, StructureKind kind, bool manual, int seed = 0, float charWidth = 66f, float charHeight = 74f)
 	{
 		if (HasSession)
 		{
@@ -229,13 +262,45 @@ public sealed class ConstructionWorld
 		{
 			return false;
 		}
+		return BeginJob(w, c, s, species, kind, site, ground, manual, seed, charWidth, charHeight);
+	}
+
+	public bool StartBuildAt(World w, Creature c, Settings s, string species, StructureKind kind, Vector2 site, bool manual, int seed = 0, float charWidth = 66f, float charHeight = 74f)
+	{
+		if (HasSession)
+		{
+			return false;
+		}
+		float half = (StructureWidth(kind, charWidth, species) + 20f) / 2f * c.Scale;
+		float topLimit = (w.Displays.Count > 0 ? w.Displays.Min((Display d) => d.Bounds.Y) : float.MinValue) + 150f * c.Scale;
+		Surface? ground = null;
+		foreach (Surface surface in w.Surfaces)
+		{
+			if (surface.Y > topLimit && Math.Abs(surface.Y - site.Y) <= 80f * c.Scale && surface.Left - 4f <= site.X - half && site.X + half <= surface.Right + 4f)
+			{
+				ground = surface;
+				break;
+			}
+		}
+		if (ground == null)
+		{
+			return false;
+		}
+		Vector2 snapped = new Vector2(Math.Clamp(site.X, ground.Left + half, ground.Right - half), ground.Y);
+		return BeginJob(w, c, s, species, kind, snapped, ground, manual, seed, charWidth, charHeight);
+	}
+
+	private bool BeginJob(World w, Creature c, Settings s, string species, StructureKind kind, Vector2 site, Surface ground, bool manual, int seed, float charWidth, float charHeight)
+	{
+		DestroyAllStructures();
+		ClearShelter();
 		Random random = ((seed == 0) ? new Random() : new Random(seed));
 		Active = new Structure
 		{
 			Kind = kind,
 			Site = site,
-			Width = (kind == StructureKind.Platform ? 170f : kind == StructureKind.StickStructure ? 110f : 130f) * c.Scale * (species == "octopus" ? 1.25f : 1f),
-			Height = (kind == StructureKind.Platform ? 26f : 92f) * c.Scale,
+			Width = StructureWidth(kind, charWidth, species) * c.Scale,
+			Height = StructureHeight(kind, charHeight) * c.Scale,
 			StagesTotal = kind == StructureKind.Platform ? 3 : 4,
 			SurfaceId = -9000000L - (long)(Math.Abs(site.X * 13f + site.Y) % 899999),
 			BornAt = c.Time,
@@ -248,7 +313,6 @@ public sealed class ConstructionWorld
 		{
 			bill.Add(MaterialKind.Plank);
 			bill.Add(MaterialKind.Plank);
-			bill.Add(MaterialKind.Nail);
 		}
 		else if (kind == StructureKind.StickStructure)
 		{
@@ -258,17 +322,13 @@ public sealed class ConstructionWorld
 		}
 		else
 		{
+			bill.Add(MaterialKind.Stick);
 			bill.Add(MaterialKind.Plank);
 			bill.Add(MaterialKind.Plank);
 			bill.Add(MaterialKind.Panel);
-			bill.Add(MaterialKind.Nail);
 		}
 		foreach (MaterialKind want in bill)
 		{
-			if (want == MaterialKind.Nail)
-			{
-				continue;
-			}
 			float side = random.Next(2) == 0 ? -1f : 1f;
 			float dropX = site.X + side * (140f + (float)random.NextDouble() * 120f) * c.Scale;
 			dropX = Math.Clamp(dropX, ground.Left + 30f * c.Scale, ground.Right - 30f * c.Scale);
@@ -279,6 +339,18 @@ public sealed class ConstructionWorld
 				Velocity = Vector2.Zero
 			});
 		}
+		Materials.Add(new Material
+		{
+			Kind = MaterialKind.Hammer,
+			Position = new Vector2(site.X - 40f * c.Scale, site.Y - 80f * c.Scale),
+			Velocity = Vector2.Zero
+		});
+		Materials.Add(new Material
+		{
+			Kind = MaterialKind.Nail,
+			Position = new Vector2(site.X + 40f * c.Scale, site.Y - 80f * c.Scale),
+			Velocity = Vector2.Zero
+		});
 		Manual = manual;
 		gatherIndex = 0;
 		nailsThisStage = 0;
@@ -297,6 +369,11 @@ public sealed class ConstructionWorld
 		}
 		Phase = BuildPhase.None;
 		Active = null;
+	}
+
+	public void ClearShelter()
+	{
+		ShelterUntil = 0.0;
 	}
 
 	public bool CommandTestHammer(Creature c)
@@ -328,9 +405,27 @@ public sealed class ConstructionWorld
 		return true;
 	}
 
-	public void DestroyActive()
+	public int StandingStructures => Structures.Count;
+
+	public void DestroyAllStructures()
 	{
-		if (Active != null)
+		Structures.Clear();
+		foreach (Material material in Materials.ToList())
+		{
+			if (material.Placed || material.Carried)
+			{
+				Materials.Remove(material);
+			}
+		}
+		if (Active != null && !Structures.Contains(Active))
+		{
+			Active = null;
+		}
+		Phase = BuildPhase.None;
+	}
+
+	public void DestroyActive()
+	{		if (Active != null)
 		{
 			Structures.Remove(Active);
 		}
@@ -385,9 +480,40 @@ public sealed class ConstructionWorld
 				Structures.RemoveAt(i);
 			}
 		}
+		if (!HasSession && ShelterUntil > c.Time)
+		{
+			Structure? home = Structures.FirstOrDefault(x => x.SurfaceId == ShelterId && x.Finished);
+			if (home == null)
+			{
+				ShelterUntil = 0.0;
+			}
+			else
+			{
+				Surface? perch = FindSiteSurface(w, home);
+				bool onSite = (perch != null && c.Support == perch.Id)
+					|| (Math.Abs(c.Position.X - home.Site.X) < 70f * scale && Math.Abs(c.Position.Y - home.Site.Y) < 150f * scale);
+				if (onSite)
+				{
+					c.RequestActivity(Activity.Sit, 2f);
+					c.SetFacing(home.Site.X >= c.Position.X ? 1 : -1);
+				}
+				else if (home.Site.Y < c.Position.Y - 100f * scale)
+				{
+					RideToSite(w, c, scale, home);
+				}
+				else
+				{
+					c.Seek(home.Site);
+				}
+			}
+		}
 		if (!HasSession || Active == null)
 		{
 			return;
+		}
+		if (c.Activity != Activity.Build && c.Activity != Activity.Climb)
+		{
+			c.RequestActivity(Activity.Build, 10f);
 		}
 		Structure job = Active;
 		sessionTime += dt;
@@ -396,14 +522,21 @@ public sealed class ConstructionWorld
 		{
 		case BuildPhase.Travel:
 		{
+			if (!RideToSite(w, c, scale, job))
+			{
+				if (sessionTime > 25f)
+				{
+					Cancel();
+				}
+				break;
+			}
 			c.SetTargetX(job.Site.X);
 			c.SetMotionOverride(null);
 			if (Math.Abs(c.Position.X - job.Site.X) < 40f * scale && c.Support.HasValue)
 			{
 				SetPhase(BuildPhase.Investigate);
-				sessionTime = 0f;
 			}
-			else if (sessionTime > 20f)
+			else if (sessionTime > 25f)
 			{
 				Cancel();
 			}
@@ -422,7 +555,8 @@ public sealed class ConstructionWorld
 		}
 		case BuildPhase.Gather:
 		{
-			Material? need = Materials.FirstOrDefault(m => !m.Carried && !m.Placed && m.Kind != MaterialKind.Hammer && m.Kind != MaterialKind.Nail);
+			Material? need = Materials.FirstOrDefault(m => !m.Carried && !m.Placed && m.Kind == MaterialKind.Hammer)
+				?? Materials.FirstOrDefault(m => !m.Carried && !m.Placed && m.Kind != MaterialKind.Hammer);
 			if (need == null)
 			{
 				SetPhase(BuildPhase.Place);
@@ -447,13 +581,20 @@ public sealed class ConstructionWorld
 		}
 		case BuildPhase.Carry:
 		{
+			if (!RideToSite(w, c, scale, job))
+			{
+				if (sessionTime > 35f)
+				{
+					Cancel();
+				}
+				break;
+			}
 			c.SetTargetX(job.Site.X);
 			if (Math.Abs(c.Position.X - job.Site.X) < 44f * scale)
 			{
 				SetPhase(BuildPhase.Place);
-				sessionTime = 0f;
 			}
-			else if (sessionTime > 20f)
+			else if (sessionTime > 35f)
 			{
 				Cancel();
 			}
@@ -461,12 +602,27 @@ public sealed class ConstructionWorld
 		}
 		case BuildPhase.Place:
 		{
-			Material? held = Materials.FirstOrDefault(m => m.Carried);
+			if (!RideToSite(w, c, scale, job))
+			{
+				if (sessionTime > 30f)
+				{
+					Cancel();
+				}
+				break;
+			}
+			Material? held = Materials.FirstOrDefault(m => m.Carried && m.Kind != MaterialKind.Hammer);
 			if (held == null)
 			{
-				if (Materials.Any(m => !m.Carried && !m.Placed && m.Kind != MaterialKind.Hammer && m.Kind != MaterialKind.Nail))
+				if (Materials.Any(m => !m.Carried && !m.Placed && m.Kind != MaterialKind.Hammer))
 				{
 					SetPhase(BuildPhase.Gather);
+				}
+				else if (Materials.Any(m => m.Kind == MaterialKind.Hammer && m.Carried))
+				{
+					SetPhase(BuildPhase.Hammer);
+					nailsThisStage = 0;
+					swings = 0;
+					nailPoint = job.Slot(Math.Min(job.Stage, job.StagesTotal - 1));
 				}
 				else
 				{
@@ -476,7 +632,6 @@ public sealed class ConstructionWorld
 					swings = 0;
 					nailPoint = job.Slot(Math.Min(job.Stage, job.StagesTotal - 1));
 				}
-				sessionTime = 0f;
 				break;
 			}
 			held.Carried = false;
@@ -484,12 +639,19 @@ public sealed class ConstructionWorld
 			held.Position = job.Slot(Math.Min(job.Stage + Materials.Count(m => m.Placed) % 2, job.StagesTotal - 1));
 			held.PlaceAt = held.Position;
 			c.SetMotionOverride(null);
-			SetPhase(Materials.Any(m => !m.Carried && !m.Placed && m.Kind != MaterialKind.Hammer && m.Kind != MaterialKind.Nail) ? BuildPhase.Gather : BuildPhase.Place);
-			sessionTime = 0f;
+			SetPhase(Materials.Any(m => !m.Carried && !m.Placed && m.Kind != MaterialKind.Hammer) ? BuildPhase.Gather : BuildPhase.Place);
 			break;
 		}
 		case BuildPhase.Hammer:
 		{
+			if (!RideToSite(w, c, scale, job))
+			{
+				if (sessionTime > 50f)
+				{
+					Cancel();
+				}
+				break;
+			}
 			swingPhase += dt * (5f + job.Stage);
 			float bob = MathF.Sin(swingPhase * (float)Math.PI * 2f);
 			nailPoint = job.Slot(Math.Min(job.Stage, job.StagesTotal - 1));
@@ -539,9 +701,11 @@ public sealed class ConstructionWorld
 		}
 		case BuildPhase.Done:
 		{
+			TidyTools(job);
 			c.SetHandTarget(null);
 			c.SetMotionOverride(null);
-			c.SetActivity(Activity.Sit, 2f);
+			c.SetTargetX(job.Site.X);
+			c.SetActivity(Activity.Sit, 12f);
 			if (!Manual)
 			{
 				s.Advanced.LastBuildUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -609,13 +773,102 @@ public sealed class ConstructionWorld
 			job.BornAt = c.Time;
 			Structures.Add(job);
 		}
-		foreach (Material material in Materials.Where(m => m.Kind == MaterialKind.Hammer))
-		{
-			material.Carried = false;
-		}
+		TidyTools(job);
 		c.SetHandTarget(null);
 		SetPhase(BuildPhase.Inspect);
 		sessionTime = 0f;
+	}
+
+	private void TidyTools(Structure job)
+	{
+		Material? hammer = Materials.FirstOrDefault(m => m.Kind == MaterialKind.Hammer);
+		if (hammer != null)
+		{
+			hammer.Carried = false;
+			hammer.Placed = true;
+			hammer.Position = new Vector2(job.Site.X + job.Width * 0.32f, job.Site.Y);
+			hammer.PlaceAt = hammer.Position;
+			hammer.Velocity = Vector2.Zero;
+		}
+		Material? nail = Materials.FirstOrDefault(m => m.Kind == MaterialKind.Nail);
+		if (nail == null)
+		{
+			nail = new Material { Kind = MaterialKind.Nail, Position = new Vector2(job.Site.X - job.Width * 0.3f, job.Site.Y) };
+			Materials.Add(nail);
+		}
+		nail.Carried = false;
+		nail.Placed = true;
+		nail.Position = new Vector2(job.Site.X - job.Width * 0.3f, job.Site.Y);
+		nail.PlaceAt = nail.Position;
+		nail.Velocity = Vector2.Zero;
+	}
+
+	public long ShelterId { get; private set; } = -1;
+
+	public double ShelterUntil { get; private set; }
+
+	private double nextGentle;
+
+	public void HouseHit(Creature c, Structure s)
+	{
+		s.Poke(1.0f, c.Time);
+		c.Notify();
+		c.SetMood(0.25f);
+		c.Seek(s.Site);
+		ShelterId = s.SurfaceId;
+		ShelterUntil = c.Time + 25.0;
+	}
+
+	public bool PokeAt(Vector2 cursor, double now)
+	{
+		if (now < nextGentle)
+		{
+			return false;
+		}
+		foreach (Structure s in Structures)
+		{
+			if (!s.Finished)
+			{
+				continue;
+			}
+			if (cursor.X >= s.Site.X - s.Width / 2f - 6f && cursor.X <= s.Site.X + s.Width / 2f + 6f && cursor.Y >= s.Site.Y - s.Height - 6f && cursor.Y <= s.Site.Y + 6f)
+			{
+				s.Poke(0.3f, now);
+				nextGentle = now + 1.5;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static Surface? FindSiteSurface(World w, Structure job)
+	{
+		foreach (Surface surface in w.Surfaces)
+		{
+			if (Math.Abs(surface.Y - job.Site.Y) < 8f && surface.Left - 4f <= job.Site.X && job.Site.X <= surface.Right + 4f)
+			{
+				return surface;
+			}
+		}
+		return null;
+	}
+
+	private static bool RideToSite(World w, Creature c, float scale, Structure job)
+	{
+		Surface? perch = FindSiteSurface(w, job);
+		if (perch == null || c.Support == perch.Id)
+		{
+			return true;
+		}
+		if (job.Site.Y < c.Position.Y - 100f * scale)
+		{
+			c.SetClimbTarget(perch);
+			c.SetTargetX(job.Site.X);
+			c.RequestActivity(Activity.Climb, 15f);
+			c.SetMotionOverride(null);
+			return false;
+		}
+		return true;
 	}
 
 	public IEnumerable<Surface> Surfaces()

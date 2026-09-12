@@ -26,11 +26,15 @@ public sealed class AdvancedSettings
 
 	public float ClimbIntervalMaxSec { get; set; } = 1200f;
 
+	public float ClimbIdleSec { get; set; } = 60f;
+
 	public float BuildCooldownSec { get; set; } = 7200f;
 
 	public float BuildIntervalMinSec { get; set; } = 3600f;
 
 	public float BuildIntervalMaxSec { get; set; } = 10800f;
+
+	public float BuildIdleSec { get; set; } = 120f;
 
 	public float StructureLifetimeMin { get; set; } = 30f;
 
@@ -98,9 +102,11 @@ public sealed class AdvancedSettings
 		["ClimbCooldownSec"] = "Quiet time after a climb before the next one may start.",
 		["ClimbIntervalMinSec"] = "Shortest wait between independent climb decisions.",
 		["ClimbIntervalMaxSec"] = "Longest wait between independent climb decisions.",
+		["ClimbIdleSec"] = "No autonomous climbs until the user has been quiet this long.",
 		["BuildCooldownSec"] = "Quiet time after a construction before the next one may start.",
 		["BuildIntervalMinSec"] = "Shortest wait between independent build decisions.",
 		["BuildIntervalMaxSec"] = "Longest wait between independent build decisions.",
+		["BuildIdleSec"] = "No autonomous builds until the user has been quiet this long.",
 		["StructureLifetimeMin"] = "How long a finished house or platform stays in the world.",
 		["RareEventProbability"] = "Chance per decision for rare flourishes (peek, pause-and-look).",
 		["WanderDecisionMinSec"] = "Shortest idle behavior duration.",
@@ -275,7 +281,7 @@ public sealed class AdvancedSettings
 		{
 			throw new InvalidDataException("Unsupported advanced settings.");
 		}
-		float[] values = { ClimbCooldownSec, ClimbIntervalMinSec, ClimbIntervalMaxSec, BuildCooldownSec, BuildIntervalMinSec, BuildIntervalMaxSec, StructureLifetimeMin, RareEventProbability, WanderDecisionMinSec, WanderDecisionMaxSec, PettingSensitivity, GrabSensitivity, ThrowPower, ObjectGripStrength, GravityScale, FrictionScale, BounceScale, JumpVelocity, ClimbSpeed, AnimationSpeed, BlendRate, MusicEnergyThreshold, RhythmSensitivity, ContextReactionCooldownSec, CursorAttractRadius, WindowInvestigateProbability, SleepThreshold, EnergyRecoveryRate, MoodRecoveryRate, PhysicsStepSec, SurpriseIntervalMinSec, SurpriseIntervalMaxSec, PlayScoreBoost };
+		float[] values = { ClimbCooldownSec, ClimbIntervalMinSec, ClimbIntervalMaxSec, ClimbIdleSec, BuildCooldownSec, BuildIntervalMinSec, BuildIntervalMaxSec, BuildIdleSec, StructureLifetimeMin, RareEventProbability, WanderDecisionMinSec, WanderDecisionMaxSec, PettingSensitivity, GrabSensitivity, ThrowPower, ObjectGripStrength, GravityScale, FrictionScale, BounceScale, JumpVelocity, ClimbSpeed, AnimationSpeed, BlendRate, MusicEnergyThreshold, RhythmSensitivity, ContextReactionCooldownSec, CursorAttractRadius, WindowInvestigateProbability, SleepThreshold, EnergyRecoveryRate, MoodRecoveryRate, PhysicsStepSec, SurpriseIntervalMinSec, SurpriseIntervalMaxSec, PlayScoreBoost };
 		foreach (float value in values)
 		{
 			if (!float.IsFinite(value))
@@ -290,9 +296,11 @@ public sealed class AdvancedSettings
 		ClimbCooldownSec = Math.Clamp(ClimbCooldownSec, 0f, 7200f);
 		ClimbIntervalMinSec = Math.Clamp(ClimbIntervalMinSec, 30f, 3600f);
 		ClimbIntervalMaxSec = Math.Clamp(ClimbIntervalMaxSec, ClimbIntervalMinSec, 7200f);
+		ClimbIdleSec = Math.Clamp(ClimbIdleSec, 0f, 3600f);
 		BuildCooldownSec = Math.Clamp(BuildCooldownSec, 0f, 14400f);
 		BuildIntervalMinSec = Math.Clamp(BuildIntervalMinSec, 300f, 7200f);
 		BuildIntervalMaxSec = Math.Clamp(BuildIntervalMaxSec, BuildIntervalMinSec, 14400f);
+		BuildIdleSec = Math.Clamp(BuildIdleSec, 0f, 7200f);
 		StructureLifetimeMin = Math.Clamp(StructureLifetimeMin, 5f, 180f);
 		RareEventProbability = Math.Clamp(RareEventProbability, 0f, 1f);
 		WanderDecisionMinSec = Math.Clamp(WanderDecisionMinSec, 1f, 30f);

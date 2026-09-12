@@ -43,9 +43,42 @@ public sealed class Character
 
 	public Dictionary<string, Clip> Animations { get; set; } = new Dictionary<string, Clip>();
 
-	public static Character Load(string file)
+	public static Character MigrationDefaults()
 	{
-		FileInfo fileInfo = new FileInfo(file);
+		Character defaults = new Character();
+		defaults.Animations["Hanging"] = new Clip { Rate = 1.2f, Bob = 0.4f, Lean = 0f, Crouch = 0.08f, Eyes = 1f, Ears = 0.1f, Arms = 2.5f, Duration = 1.6f, Loop = true, Markers = Array.Empty<float>() };
+		defaults.Animations["Carrying"] = new Clip { Rate = 2f, Bob = 1.6f, Lean = 1.5f, Crouch = 0.05f, Eyes = 1f, Ears = 0f, Arms = 1.8f, Duration = 1f, Loop = true, Markers = Array.Empty<float>() };
+		defaults.Animations["Hammering"] = new Clip { Rate = 3.2f, Bob = 2.2f, Lean = 1f, Crouch = 0.12f, Eyes = 1f, Ears = 0f, Arms = 3f, Duration = 0.9f, Loop = true, Markers = new float[1] };
+		defaults.Animations["Peeking"] = new Clip { Rate = 0.8f, Bob = 0.3f, Lean = 2f, Crouch = 0f, Eyes = 1f, Ears = 1f, Arms = 0f, Duration = 2.2f, Loop = true, Markers = Array.Empty<float>() };
+		defaults.Animations["Balancing"] = new Clip { Rate = 1.4f, Bob = 1.2f, Lean = 0f, Crouch = 0.15f, Eyes = 1f, Ears = 0.3f, Arms = 2.2f, Duration = 1.2f, Loop = true, Markers = Array.Empty<float>() };
+		defaults.Animations["Hammering"].Markers[0] = 0.5f;
+		return defaults;
+	}
+
+	public void FillMissingClips(Character defaults)
+	{		foreach (string name in Enum.GetNames<Motion>())
+		{
+			if (!Animations.ContainsKey(name) && defaults.Animations.TryGetValue(name, out Clip? clip) && clip != null)
+			{
+				Animations[name] = new Clip
+				{
+					Rate = clip.Rate,
+					Bob = clip.Bob,
+					Lean = clip.Lean,
+					Crouch = clip.Crouch,
+					Eyes = clip.Eyes,
+					Ears = clip.Ears,
+					Arms = clip.Arms,
+					Duration = clip.Duration,
+					Loop = clip.Loop,
+					Markers = (float[])clip.Markers.Clone()
+				};
+			}
+		}
+	}
+
+	public static Character Load(string file)
+	{		FileInfo fileInfo = new FileInfo(file);
 		if (!fileInfo.Exists || fileInfo.Length > 262144)
 		{
 			throw new InvalidDataException("Character file is absent or exceeds 256 KiB.");
