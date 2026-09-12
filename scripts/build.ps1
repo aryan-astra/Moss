@@ -62,3 +62,9 @@ Write-Host "Artifacts:"
 Write-Host "  $zip"
 Write-Host "  $exe"
 Write-Host "  $sums"
+
+# Remove intermediate publish trees so the only runnable copies left are
+# the versioned distribution artifacts above. They are recreated by every
+# build, and leaving them around only invites running an incomplete copy.
+Remove-Item -LiteralPath $portable -Recurse -Force
+Remove-Item -LiteralPath $single -Recurse -Force
