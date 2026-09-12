@@ -1,7 +1,7 @@
 # Moss — repository hygiene
-# This baseline tracks the Moss 1.3.0 portable distribution as-is.
-# The rules below guard against future junk; they intentionally do NOT
-# exclude any file already committed in the baseline.
+# This repository tracks Moss source, content and docs. Published binaries
+# live in GitHub Releases, never in git. The rules below also cover
+# regenerated publish metadata that ships beside a local portable copy.
 
 # .NET build outputs (if compilable source is added later)
 [Bb]in/
@@ -20,6 +20,10 @@ artifacts/
 # NuGet packages / lock artifacts that should never be committed directly
 *.nupkg
 *.snupkg
+
+# Regenerated .NET publish metadata (recreated by every publish)
+Moss.deps.json
+Moss.runtimeconfig.json
 
 # Local Moss runtime state (user data lives in %LOCALAPPDATA%\Moss,
 # never in this repository)
