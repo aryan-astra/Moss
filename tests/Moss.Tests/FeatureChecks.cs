@@ -57,6 +57,35 @@ internal static class FeatureChecks
 		Program.Check(pet.NextClimbAt > pet.Time, "climb completion arms interval cooldown");
 		Program.Check(pet.Climb.Route.Count > 0, "climb route recorded for debug view");
 
+		Creature near = MakePet(world);
+		near.Position = new System.Numerics.Vector2(60f, 1040f);
+		near.SetCuriosity(1f);
+		near.SetEnergy(0.9f);
+		Program.Check(near.Scores(world, settings, personality, music: false)[Activity.ClimbEdge] > 0f, "edge climb desired near a screen edge");
+
+		bool selfStarted = false;
+		bool stayedInside = true;
+		int roam = 0;
+		while (roam < 24000 && !selfStarted)
+		{
+			near.Step(1f / 120f, world, settings, personality, music: false);
+			roam++;
+			if (near.Position.X < -30f || near.Position.X > 1950f || near.Position.Y < -250f || near.Position.Y > 1210f)
+			{
+				stayedInside = false;
+			}
+			if (near.Climb.Phase != ClimbPhase.None)
+			{
+				selfStarted = true;
+			}
+			if (roam % 600 == 0 && near.Climb.Phase == ClimbPhase.None && (near.Position.X > 420f || !near.Support.HasValue))
+			{
+				near.Position = new System.Numerics.Vector2(60f, 900f);
+			}
+		}
+		Program.Check(selfStarted, "autonomy starts an edge climb on its own");
+		Program.Check(stayedInside, "pet never leaves screen bounds");
+
 		bool sawTop = false;
 		for (int seed = 1; seed <= 8; seed++)
 		{
