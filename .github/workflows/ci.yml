@@ -1,0 +1,35 @@
+# Moss continuous integration: restore, build and test on every push/PR.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore Moss.sln
+
+      - name: Build
+        shell: pwsh
+        run: dotnet build Moss.sln -c Release --no-restore
+
+      - name: Test
+        shell: pwsh
+        run: dotnet run --project tests/Moss.Tests -c Release --no-build

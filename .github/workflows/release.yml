@@ -4,11 +4,12 @@
 #   git tag v1.0.0
 #   git push origin v1.0.0
 #
-# The workflow restores, builds, tests, and publishes a single
-# self-contained Moss.exe from source (no install, no separate runtime,
-# no ZIP to extract), hashes it, and attaches Moss-<Version>-windows-x64.exe
-# (+ .sha256 checksum) to a GitHub Release titled "Moss <Version>".
-# Users download one file and run it.
+# The workflow checks out the tagged commit, runs scripts/build.ps1
+# (restore, build, test, dual publish, package), then creates a GitHub
+# Release with the portable ZIP, the single-file Moss.exe and SHA256SUMS.txt.
+# Users download the ZIP, extract it anywhere and run Moss.exe — no install,
+# no separate runtime. Moss-<Version>-windows-x64.exe is the same build for
+# direct download.
 #
 # Version consistency is enforced, not assumed:
 #   1. The tag must have the form v1.<minor>.<patch> (releases are 1.x only).
@@ -16,13 +17,9 @@
 #      which is also the version stamped into the compiled Moss.exe.
 # Any mismatch fails the run before anything is built or published.
 #
-# The release is built from the compilable source tree (Moss.sln, src/,
-# tests/, scripts/) at the repository root. If that tree is absent the run
-# fails fast with an explicit message instead of a cryptic build error.
-#
-# If a Release already exists for the pushed tag (e.g. the binaries were
-# published manually), the run exits successfully without doing anything
-# instead of failing or duplicating the release.
+# If a Release already exists for the pushed tag, the run exits successfully
+# without doing anything instead of failing or duplicating the release.
+# Every step fails the run visibly on error; a failed run never publishes.
 
 name: release
 
@@ -79,7 +76,7 @@ jobs:
         shell: pwsh
         run: |
           if (-not (Test-Path -LiteralPath 'Moss.sln')) {
-            throw 'Moss.sln not found at the repository root. Push the Moss source tree first; releases are built from source, not from the checked-in portable copy.'
+            throw 'Moss.sln not found at the repository root. Push the Moss source tree first; releases are built from source.'
           }
 
       - name: Set up .NET 8 SDK
@@ -88,48 +85,31 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore
+      - name: Build, test, publish, package
         if: steps.preskip.outputs.skip != 'true'
         shell: pwsh
-        run: dotnet restore Moss.sln
-
-      - name: Build
-        if: steps.preskip.outputs.skip != 'true'
-        shell: pwsh
-        run: dotnet build Moss.sln -c Release --no-restore
-
-      - name: Test
-        if: steps.preskip.outputs.skip != 'true'
-        shell: pwsh
-        run: dotnet run --project tests/Moss.Tests -c Release --no-build -- .
-
-      - name: Publish single-file exe
-        if: steps.preskip.outputs.skip != 'true'
-        shell: pwsh
-        run: >
-          dotnet publish src/Moss.Windows -c Release -r win-x64
-          --self-contained true -p:PublishSingleFile=true -p:DebugType=None
-          -o artifacts/Moss-win-x64
-
-      - name: Stage release asset
-        if: steps.preskip.outputs.skip != 'true'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $built = 'artifacts/Moss-win-x64/Moss.exe'
-          if (-not (Test-Path -LiteralPath $built)) { throw "Expected single-file build output '$built' is missing." }
-          $exe = "artifacts/Moss-${{ steps.version.outputs.number }}-windows-x64.exe"
-          Copy-Item -LiteralPath $built -Destination $exe -Force
-          (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash | Out-File "$exe.sha256" -Encoding ascii
+        run: ./scripts/build.ps1
 
       - name: Create GitHub Release
         if: steps.preskip.outputs.skip != 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+          VERSION_NUMBER: ${{ steps.version.outputs.number }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $tag = '${{ github.ref_name }}'
-          $number = '${{ steps.version.outputs.number }}'
-          $exe = "artifacts/Moss-$number-windows-x64.exe"
-          gh release create $tag $exe "$exe.sha256" --title "Moss $number" --notes "Moss $number for Windows 10/11 x64. Download Moss-$number-windows-x64.exe and run it — no install, no separate runtime, no extraction needed. Character packs, docs and licenses live in this repository."
+          $short = $env:COMMIT_SHA.Substring(0, 7)
+          $sums = Get-Content -LiteralPath 'artifacts/SHA256SUMS.txt' -Raw
+          $notes = @"
+          Moss $env:VERSION_NUMBER for Windows 10/11 x64, built from $env:TAG_NAME (commit $short).
+
+          Download Moss-$env:VERSION_NUMBER-windows-x64.zip, extract it anywhere and run Moss.exe — no install, no separate .NET runtime needed. Moss-$env:VERSION_NUMBER-windows-x64.exe is the same single-file build for direct download.
+
+          Unsigned portable build; character packs, docs and licenses are inside the ZIP and in this repository.
+
+          Checksums (SHA256SUMS.txt):
+          $sums
+          "@
+          gh release create $env:TAG_NAME "artifacts/Moss-$env:VERSION_NUMBER-windows-x64.zip" "artifacts/Moss-$env:VERSION_NUMBER-windows-x64.exe" artifacts/SHA256SUMS.txt --title "Moss $env:VERSION_NUMBER" --notes $notes

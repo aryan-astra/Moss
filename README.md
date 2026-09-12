@@ -169,6 +169,17 @@ Install the .NET 8 SDK, extract `Moss-1.3.0-source.zip`, and run from the `Moss`
 
 This restores pinned dependencies, builds, runs the regression harness and publishes a self-contained Windows archive. Initial NuGet restore needs internet. No runtime internet connection is required. `Moss.sln` can also be opened in Visual Studio. [BUILD.md](docs/BUILD.md) contains individual commands, cross-compilation notes and optional MSIX signing.
 
+### Releases
+
+Releases are built automatically by GitHub Actions — no manual packaging:
+
+```powershell
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The workflow restores, builds, runs the regression harness, publishes the portable Windows x64 distribution plus a single-file `Moss.exe`, and attaches the ZIP, the EXE and checksums to the GitHub Release. See [RECONSTRUCTED-SOURCE.md](RECONSTRUCTED-SOURCE.md) for how the current source tree was recovered.
+
 ## Troubleshooting
 
 - **Tray only:** exit old versions before launching this one; inspect the tray visibility reason and use Show / recover. Actual fullscreen still hides by default. In remote sharing tools, capture exclusion can intentionally omit the pet.
