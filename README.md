@@ -15,8 +15,8 @@ Moss is a tiny companion that lives on your desktop. It perches on your window l
 
 ## Moss in numbers
 
-| 7 | hand-tuned characters | 23 | motion states | 120 | physics steps every second |
-| 18 | automated checks, green | 700 | ms notebook autosave | 0 | accounts, cloud calls, ads |
+| 8 | hand-tuned characters | 28 | motion states | 120 | physics steps every second |
+| 82 | automated checks, green | 700 | ms notebook autosave | 0 | accounts, cloud calls, ads |
 
 ## Get going in a minute
 
@@ -27,7 +27,7 @@ Moss is a tiny companion that lives on your desktop. It perches on your window l
 
 ## What a day with Moss looks like
 
-- **Morning.** Moss wakes on a window ledge, stretches through a few of its 23 motion states, and watches your cursor while you work.
+- **Morning.** Moss wakes on a window ledge, stretches through a few of its 28 motion states, and watches your cursor while you work.
 - **Afternoon.** You grab it mid-wander and toss it across the screen. It lands, rebounds, shakes it off. You pull its twig toy; it pulls back.
 - **Evening.** Music comes on. Moss notices — really notices, from the actual playback session — climbs down, and dances. Hearts optional; petting helps.
 - **Night.** You jot tomorrow's plan in the notebook, set `@remind tomorrow 9am call home`, confirm the preview, close the lid. Moss sleeps at 5 frames a second and sips almost nothing.
@@ -43,6 +43,7 @@ Moss is a tiny companion that lives on your desktop. It perches on your window l
 | Inky | Octopus | Eight waving arms, unbothered, excellent dancer |
 | Clover | Rabbit | Long ears, big feet, gentle and a little shy |
 | Puck | Penguin | Belly-first waddle, formal but friendly |
+| Wren | Bird | Atlas-sprite plumage, the experimental eighth |
 
 Everyone runs on the same engine with their own proportions, palette, personality mix and music player — headphones, CD, radio, cassette or turntable. Pick one in Customize; names, sizes and moods are remembered per pet.
 
@@ -54,7 +55,7 @@ flowchart TB
         direction LR
         world["World<br/>windows & ledges"] --> physics["Physics<br/>120 steps/sec"]
         physics --> behavior["Behavior<br/>mood · energy · curiosity"]
-        behavior --> anim["Animation<br/>23 motion states"]
+        behavior --> anim["Animation<br/>28 motion states"]
         notes[("Notes<br/>& reminders")]
     end
     subgraph win["Moss.Windows — the body"]
@@ -89,7 +90,7 @@ cd Moss
 ./scripts/build.ps1
 ```
 
-Needs the .NET 8 SDK (pinned in `global.json`). That one script restores, builds [`Moss.sln`](Moss.sln), runs the 18-check harness, and stages the portable ZIP, the single-file EXE and checksums under `artifacts/`. Releases are cut the same way by robots: push a `v1.*` tag matching `Directory.Build.props` and GitHub Actions does the rest. Bring your own creature too — a character is one validated `character.json` (see [`characters/character.schema.json`](characters/character.schema.json)).
+Needs the .NET 8 SDK (pinned in `global.json`). That one script restores, builds [`Moss.sln`](Moss.sln), runs the 82-check harness, and stages the portable ZIP, the single-file EXE and checksums under `artifacts/`. Releases are cut the same way by robots: push a `v1.*` tag matching `Directory.Build.props` and GitHub Actions does the rest. Bring your own creature too — a character is one validated `character.json` (see [`characters/character.schema.json`](characters/character.schema.json)).
 
 ## Simple outside, laboratory inside
 
