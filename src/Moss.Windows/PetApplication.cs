@@ -278,7 +278,7 @@ internal sealed class PetApplication : ApplicationContext
 		Creature.CharWidth = Character.Width;
 		Creature.CharHeight = Character.Height;
 		animator = new Animator(Character);
-		renderer = new CreatureRenderer(Character);
+		renderer = new CreatureRenderer(Character, Path.GetDirectoryName(ActiveCharacterFile));
 		sounds = new Sounds(Character.Sound, Config.SoundLevel);
 		WireCreature();
 		overlay.SpecialClick = delegate(Vector2 point)
@@ -728,7 +728,7 @@ internal sealed class PetApplication : ApplicationContext
 		try
 		{
 			Character character = Moss.Core.Character.Load(ActiveCharacterFile);
-			CreatureRenderer creatureRenderer = new CreatureRenderer(character);
+			CreatureRenderer creatureRenderer = new CreatureRenderer(character, Path.GetDirectoryName(ActiveCharacterFile));
 			sounds.Dispose();
 			sounds = new Sounds(character.Sound, Config.SoundLevel);
 			renderer.Dispose();

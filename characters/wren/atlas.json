@@ -1,0 +1,682 @@
+{
+  "formatVersion": 1,
+  "source": {
+    "file": "Moss Bird Asset .png",
+    "width": 2816,
+    "height": 1536,
+    "pixelFormat": "Format24bppRgb",
+    "hasAlpha": false,
+    "fileBytes": 7023714,
+    "background": "checkerboard baked into pixels (not a real alpha channel)",
+    "labels": "row titles baked into pixels on the left of each band"
+  },
+  "grid": {
+    "rows": 8,
+    "layout": "8 horizontal semantic bands, variable cell counts per band",
+    "cellEstimate": "roughly 128-150 px squares; row header strip ~28-34 px tall for the baked title",
+    "coordinateSystem": "pixels, origin top-left of the source image",
+    "status": "estimated \u2014 exact per-cell rects require a cleaned, label-free export with a real alpha channel"
+  },
+  "rows": [
+    {
+      "id": "core",
+      "label": "CORE MOVEMENT",
+      "cells": 20,
+      "usable": "cells 1-16 as locomotion/rest keyframes; redundant tumble duplicates ignored",
+      "notes": "idle, walk cycle, run lean, jump stretch, fall spread, sit, sleep (2 cells: settled \u002B curled), wake stretch, peck, preen, tumble variants, land"
+    },
+    {
+      "id": "wing",
+      "label": "WING MOVEMENT",
+      "cells": 16,
+      "usable": "takeoff \u002B ~10 flap phases \u002B glide \u002B landing flare as the airborne keyframe set",
+      "notes": "front-facing spread cell is symmetric; usable as startle/celebrate accent, not as a directional variant"
+    },
+    {
+      "id": "expression",
+      "label": "EXPRESSIONS \u0026 EYES",
+      "cells": 24,
+      "usable": "12 head poses as expression reference; 12 eye-pair tiles as reusable components only",
+      "notes": "procedural rig supports Eyes 0..1 \u002B blink \u002B blush; per-expression beak/mouth shapes are not separately rigged (see limitations)"
+    },
+    {
+      "id": "physical",
+      "label": "PHYSICAL INTERACTIONS",
+      "cells": 16,
+      "usable": "cursor-look, hand-petting, grab, held, throw-tumble, dizzy as interaction keyframes",
+      "notes": "baked cursor arrow, hand, and motion-line props are NOT runtime assets; ignored (engine supplies the real cursor/hand)"
+    },
+    {
+      "id": "desktop",
+      "label": "DESKTOP WORLD INTERACTIONS",
+      "cells": 17,
+      "usable": "perch, edge-approach, wall-cling, corner, balance, peck-at-edge as climb/edge keyframes",
+      "notes": "baked planks/ledges are NOT runtime surfaces; ignored (engine supplies real window/taskbar surfaces)"
+    },
+    {
+      "id": "window",
+      "label": "WINDOW INTERACTION",
+      "cells": 9,
+      "usable": "sill-perch, peer-in, lean-in as window-investigate keyframes",
+      "notes": "baked window frames are NOT runtime geometry; ignored"
+    },
+    {
+      "id": "object",
+      "label": "OBJECT INTERACTION",
+      "cells": 5,
+      "usable": "hold, push, carry-ball poses map to Carrying/prop-tug states",
+      "notes": "baked balls are NOT runtime props; engine supplies twig/football/materials"
+    },
+    {
+      "id": "house",
+      "label": "WOODEN HOUSE \u0026 MUSIC",
+      "cells": 17,
+      "usable": "plank-carry, hammer swings, perch-on-beam, inside-house, headphone dance as build/music keyframes",
+      "notes": "baked house/beams/tools are NOT runtime structures; ConstructionWorld supplies the real ones"
+    },
+    {
+      "id": "components",
+      "label": "REUSABLE COMPONENTS",
+      "cells": 12,
+      "usable": "body, wing pair, tail, feet, eye, beak, headphones, hammer, plank, stone as component reference",
+      "notes": "components inform the procedural bird rig; they are not composited at runtime in reference-only mode"
+    }
+  ],
+  "motionMap": {
+    "Idle": {
+      "row": "core",
+      "cell": 1,
+      "confidence": "high",
+      "note": "perch-neutral"
+    },
+    "Walking": {
+      "row": "core",
+      "cell": "6-9 cycle",
+      "confidence": "high",
+      "note": "interpolated by GaitCycle/Foot, not per-frame images"
+    },
+    "Running": {
+      "row": "core",
+      "cell": "9-10",
+      "confidence": "medium",
+      "note": "lean via Pose.Lean \u002B velocity, same keyframes as walk with faster rate"
+    },
+    "Jumping": {
+      "row": "wing",
+      "cell": 2,
+      "confidence": "high",
+      "note": "takeoff stretch"
+    },
+    "Falling": {
+      "row": "wing",
+      "cell": "8-10",
+      "confidence": "high",
+      "note": "wings-up spread; visual follows physics velocity"
+    },
+    "Airborne": {
+      "row": "wing",
+      "cell": 14,
+      "confidence": "high",
+      "note": "glide"
+    },
+    "Impact": {
+      "row": "core",
+      "cell": 19,
+      "confidence": "medium",
+      "note": "closest valid tumble/land pose; crouch driven by physics impact force"
+    },
+    "Recovery": {
+      "row": "physical",
+      "cell": 16,
+      "confidence": "medium",
+      "note": "dizzy/shake-off; closest valid pose"
+    },
+    "Climbing": {
+      "row": "desktop",
+      "cell": "8-11",
+      "confidence": "high",
+      "note": "wall-cling grips"
+    },
+    "Hanging": {
+      "row": "desktop",
+      "cell": 10,
+      "confidence": "medium",
+      "note": "closest valid grip pose"
+    },
+    "Peeking": {
+      "row": "window",
+      "cell": 6,
+      "confidence": "medium",
+      "note": "peer-in; closest valid pose"
+    },
+    "Balancing": {
+      "row": "desktop",
+      "cell": 12,
+      "confidence": "high",
+      "note": "edge balance"
+    },
+    "Sitting": {
+      "row": "core",
+      "cell": 11,
+      "confidence": "high",
+      "note": ""
+    },
+    "Sleeping": {
+      "row": "core",
+      "cell": "12-13",
+      "confidence": "high",
+      "note": "settled \u002B curled"
+    },
+    "Waking": {
+      "row": "core",
+      "cell": 14,
+      "confidence": "high",
+      "note": "stretch"
+    },
+    "Looking": {
+      "row": "physical",
+      "cell": "1-5",
+      "confidence": "high",
+      "note": "cursor-look set; gaze offset also applied procedurally"
+    },
+    "Reacting": {
+      "row": "physical",
+      "cell": 9,
+      "confidence": "medium",
+      "note": "wings-up startle; closest valid pose"
+    },
+    "Startled": {
+      "row": "physical",
+      "cell": 9,
+      "confidence": "medium",
+      "note": "same startle keyframe, shorter duration"
+    },
+    "Petted": {
+      "row": "physical",
+      "cell": 8,
+      "confidence": "high",
+      "note": "hand-petting (hand prop ignored)"
+    },
+    "Grabbed": {
+      "row": "physical",
+      "cell": 10,
+      "confidence": "high",
+      "note": "grab instant"
+    },
+    "Held": {
+      "row": "physical",
+      "cell": 11,
+      "confidence": "medium",
+      "note": "closest valid held pose"
+    },
+    "Thrown": {
+      "row": "physical",
+      "cell": "13-14",
+      "confidence": "high",
+      "note": "tumble; momentum from physics release velocity"
+    },
+    "Dancing": {
+      "row": "house",
+      "cell": "14-16",
+      "confidence": "high",
+      "note": "headphone dance; beat pulse via MediaObserver"
+    },
+    "Celebrating": {
+      "row": "wing",
+      "cell": 16,
+      "confidence": "medium",
+      "note": "wings-up; closest valid pose"
+    },
+    "Hiding": {
+      "row": "house",
+      "cell": 11,
+      "confidence": "medium",
+      "note": "inside-house; closest valid pose"
+    },
+    "Investigating": {
+      "row": "core",
+      "cell": "15-16",
+      "confidence": "high",
+      "note": "peck/preen"
+    },
+    "Carrying": {
+      "row": "house",
+      "cell": "1-2",
+      "confidence": "high",
+      "note": "plank-carry (plank prop ignored)"
+    },
+    "Hammering": {
+      "row": "house",
+      "cell": "4-5",
+      "confidence": "high",
+      "note": "hammer swings on marker 0.5"
+    }
+  },
+  "transparentRegions": "none \u2014 no alpha channel; checkerboard is baked pixels, so no cell can be sampled with transparency",
+  "redundantOrUnusable": [
+    "baked checkerboard background (all cells)",
+    "baked row-title text",
+    "baked cursor arrows, hands, motion lines (physical row)",
+    "baked planks, ledges, window frames, house, beams (world/window/house rows)",
+    "baked balls/tools (object/house rows)",
+    "near-duplicate tumble cells (core row tail) \u2014 ignored rather than forced into the state machine"
+  ],
+  "directionalVariants": "atlas is right-facing only; left-facing is produced at runtime by mirroring (Facing sign), matching the existing engine",
+  "limitations": [
+    "L1: source has no alpha - the shipped atlas.png is a cleaned derivation (border-flood background removal + rim decontamination, verified cell by cell); the raw source file itself is never sampled at runtime.",
+    "L2: exact per-cell pixel rects are estimates \u2014 labels and baked props overlap ideal grid lines; do not use for blind auto-slicing.",
+    "L3: heads/eyes row has no bodies so it is not posed; expressions come from full-body state faces (startle beak, dizzy, content preen, sleepy). Raster mode has no procedural blink; closed-eye contentment appears in Petted/Sleeping keyframes.",
+    "L4: front-facing spread-wing cell has no directional mirror; used only as a symmetric accent (celebrate/startle).",
+    "L5: IDLE-\u003ELOOK-\u003EWALK-\u003EJUMP-\u003EFALL-\u003ELAND-\u003EIDLE runs through the production Creature/Animator state machine with Pose blending; atlas keyframes sequence on phase clocks while Pose blending interpolates position/rotation/scale underneath."
+  ],
+  "packed": {
+    "png": "atlas.png",
+    "width": 1024,
+    "height": 793,
+    "cells": {
+      "Waking#0": [
+        4,
+        4,
+        136,
+        137
+      ],
+      "Hanging#0": [
+        144,
+        4,
+        133,
+        127
+      ],
+      "Startled#0": [
+        281,
+        4,
+        127,
+        126
+      ],
+      "Grabbed#0": [
+        412,
+        4,
+        127,
+        126
+      ],
+      "Walking#2": [
+        543,
+        4,
+        113,
+        125
+      ],
+      "Thrown#0": [
+        660,
+        4,
+        119,
+        125
+      ],
+      "Idle#0": [
+        783,
+        4,
+        120,
+        117
+      ],
+      "Walking#0": [
+        4,
+        145,
+        120,
+        117
+      ],
+      "Walking#1": [
+        128,
+        145,
+        125,
+        117
+      ],
+      "Investigating#1": [
+        257,
+        145,
+        120,
+        117
+      ],
+      "Reacting#0": [
+        381,
+        145,
+        115,
+        116
+      ],
+      "Airborne#0": [
+        500,
+        145,
+        141,
+        115
+      ],
+      "Climbing#0": [
+        645,
+        145,
+        141,
+        115
+      ],
+      "Celebrating#0": [
+        4,
+        266,
+        252,
+        115
+      ],
+      "Running#0": [
+        260,
+        266,
+        128,
+        114
+      ],
+      "Balancing#0": [
+        392,
+        266,
+        133,
+        114
+      ],
+      "Held#0": [
+        529,
+        266,
+        119,
+        114
+      ],
+      "Thrown#2": [
+        652,
+        266,
+        119,
+        112
+      ],
+      "Peeking#0": [
+        775,
+        266,
+        105,
+        111
+      ],
+      "Dancing#0": [
+        884,
+        266,
+        114,
+        109
+      ],
+      "Running#1": [
+        4,
+        385,
+        146,
+        108
+      ],
+      "Falling#1": [
+        154,
+        385,
+        144,
+        108
+      ],
+      "Falling#0": [
+        302,
+        385,
+        139,
+        107
+      ],
+      "Carrying#0": [
+        445,
+        385,
+        147,
+        107
+      ],
+      "Carrying#1": [
+        596,
+        385,
+        140,
+        107
+      ],
+      "Hammering#0": [
+        740,
+        385,
+        113,
+        107
+      ],
+      "Hammering#1": [
+        857,
+        385,
+        124,
+        107
+      ],
+      "Falling#2": [
+        4,
+        497,
+        138,
+        106
+      ],
+      "Dancing#1": [
+        146,
+        497,
+        114,
+        106
+      ],
+      "Thrown#1": [
+        264,
+        497,
+        120,
+        105
+      ],
+      "Jumping#0": [
+        388,
+        497,
+        173,
+        104
+      ],
+      "Climbing#1": [
+        565,
+        497,
+        141,
+        104
+      ],
+      "Dancing#2": [
+        710,
+        497,
+        146,
+        104
+      ],
+      "Recovery#0": [
+        860,
+        497,
+        114,
+        102
+      ],
+      "Sitting#0": [
+        4,
+        607,
+        122,
+        101
+      ],
+      "Hiding#0": [
+        130,
+        607,
+        122,
+        101
+      ],
+      "Petted#0": [
+        256,
+        607,
+        118,
+        99
+      ],
+      "Sleeping#1": [
+        378,
+        607,
+        127,
+        95
+      ],
+      "Looking#0": [
+        509,
+        607,
+        112,
+        93
+      ],
+      "Sleeping#0": [
+        625,
+        607,
+        163,
+        87
+      ],
+      "Investigating#0": [
+        792,
+        607,
+        135,
+        84
+      ],
+      "Impact#0": [
+        4,
+        712,
+        247,
+        77
+      ]
+    },
+    "provenance": {
+      "Waking#0": "source-cell 0.13",
+      "Hanging#0": "source-cell 3.14",
+      "Startled#0": "source-cell 3.8",
+      "Grabbed#0": "source-cell 3.8",
+      "Walking#2": "source-cell 0.3",
+      "Thrown#0": "source-cell 0.16",
+      "Idle#0": "source-cell 0.0",
+      "Walking#0": "source-cell 0.1",
+      "Walking#1": "source-cell 0.2",
+      "Investigating#1": "source-cell 0.1",
+      "Reacting#0": "source-cell 3.0",
+      "Airborne#0": "source-cell 1.10",
+      "Climbing#0": "source-cell 1.7",
+      "Celebrating#0": "source-cell 1.3",
+      "Running#0": "source-cell 0.6",
+      "Balancing#0": "source-cell 3.13",
+      "Held#0": "source-cell 0.9",
+      "Thrown#2": "source-cell 0.18",
+      "Peeking#0": "source-cell 3.16",
+      "Dancing#0": "source-cell 6.12",
+      "Running#1": "source-cell 0.7",
+      "Falling#1": "source-cell 1.5",
+      "Falling#0": "source-cell 1.4",
+      "Carrying#0": "source-cell 6.0",
+      "Carrying#1": "source-cell 6.1",
+      "Hammering#0": "source-cell 6.3",
+      "Hammering#1": "source-cell 6.4",
+      "Falling#2": "source-cell 1.6",
+      "Dancing#1": "source-cell 6.13",
+      "Thrown#1": "source-cell 0.17",
+      "Jumping#0": "source-cell 1.1",
+      "Climbing#1": "source-cell 1.8",
+      "Dancing#2": "source-cell 6.14",
+      "Recovery#0": "source-cell 0.19",
+      "Sitting#0": "source-cell 0.10",
+      "Hiding#0": "source-cell 0.10",
+      "Petted#0": "source-cell 0.15",
+      "Sleeping#1": "source-cell 0.12",
+      "Looking#0": "source-cell 1.0",
+      "Sleeping#0": "source-cell 0.11",
+      "Investigating#0": "source-cell 0.14",
+      "Impact#0": "source-cell 1.13"
+    }
+  },
+  "frames": {
+    "Idle": [
+      "Idle#0"
+    ],
+    "Walking": [
+      "Walking#0",
+      "Walking#1",
+      "Walking#2"
+    ],
+    "Running": [
+      "Running#0",
+      "Running#1"
+    ],
+    "Jumping": [
+      "Jumping#0"
+    ],
+    "Falling": [
+      "Falling#0",
+      "Falling#1",
+      "Falling#2"
+    ],
+    "Airborne": [
+      "Airborne#0"
+    ],
+    "Impact": [
+      "Impact#0"
+    ],
+    "Recovery": [
+      "Recovery#0"
+    ],
+    "Climbing": [
+      "Climbing#0",
+      "Climbing#1"
+    ],
+    "Hanging": [
+      "Hanging#0"
+    ],
+    "Peeking": [
+      "Peeking#0"
+    ],
+    "Balancing": [
+      "Balancing#0"
+    ],
+    "Sitting": [
+      "Sitting#0"
+    ],
+    "Sleeping": [
+      "Sleeping#0",
+      "Sleeping#1"
+    ],
+    "Waking": [
+      "Waking#0"
+    ],
+    "Looking": [
+      "Looking#0"
+    ],
+    "Reacting": [
+      "Reacting#0"
+    ],
+    "Startled": [
+      "Startled#0"
+    ],
+    "Grabbed": [
+      "Startled#0"
+    ],
+    "Held": [
+      "Held#0"
+    ],
+    "Thrown": [
+      "Thrown#0",
+      "Thrown#1",
+      "Thrown#2"
+    ],
+    "Petted": [
+      "Petted#0"
+    ],
+    "Dancing": [
+      "Dancing#0",
+      "Dancing#1",
+      "Dancing#2"
+    ],
+    "Celebrating": [
+      "Celebrating#0"
+    ],
+    "Hiding": [
+      "Sitting#0"
+    ],
+    "Investigating": [
+      "Investigating#0",
+      "Investigating#1"
+    ],
+    "Carrying": [
+      "Carrying#0",
+      "Carrying#1"
+    ],
+    "Hammering": [
+      "Hammering#0",
+      "Hammering#1"
+    ]
+  },
+  "performance": {
+    "mode": "packed",
+    "note": "one 32-bit packed sheet with real alpha, lazy-loaded for the active character only and disposed on switch. No per-frame image rendering: frames sequence on the Animator phase clocks while Pose blending interpolates position/rotation/scale."
+  }
+}
+
+
+

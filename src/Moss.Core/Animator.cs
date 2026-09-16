@@ -20,6 +20,10 @@ public sealed class Animator(Character character)
 
 	public float GaitCycle { get; private set; }
 
+	public int FrameIndex { get; private set; }
+
+	public int FrameCount { get; private set; }
+
 	public float BlendRate { get; set; } = 12f;
 
 	public bool Finished
@@ -55,6 +59,7 @@ public sealed class Animator(Character character)
 				State = state;
 				Time = 0f;
 				Phase = 0f;
+				FrameIndex = 0;
 			}
 		}
 	}
@@ -64,12 +69,14 @@ public sealed class Animator(Character character)
 		State = state;
 		Time = 0f;
 		Phase = 0f;
+		FrameIndex = 0;
 	}
 
 	public void Restart()
 	{
 		Time = 0f;
 		Phase = 0f;
+		FrameIndex = 0;
 	}
 
 	public void Step(float dt, float beatPulse, float velocity)
@@ -86,6 +93,30 @@ public sealed class Animator(Character character)
 		float time = Time;
 		Time += dt;
 		float duration = clip.Duration;
+		// Sprite-frame sequencing rides the existing phase clocks: gait-driven
+		// for locomotion (speed-scaled, no new artwork), time-driven otherwise.
+		int frames = clip.Frames.Length;
+		FrameCount = frames;
+		if (frames > 0)
+		{
+			bool gaited = ((uint)(state - 1) <= 1u || state == Motion.Investigating || state == Motion.Climbing);
+			if (gaited)
+			{
+				FrameIndex = ((int)(GaitCycle * frames)) % frames;
+			}
+			else if (clip.Loop)
+			{
+				FrameIndex = duration > 0f ? ((int)(Time / duration * frames)) % frames : 0;
+			}
+			else
+			{
+				FrameIndex = duration > 0f ? Math.Min((int)(Time / duration * frames), frames - 1) : 0;
+			}
+		}
+		else
+		{
+			FrameIndex = 0;
+		}
 		float[] markers = clip.Markers;
 		for (int i = 0; i < markers.Length; i++)
 		{

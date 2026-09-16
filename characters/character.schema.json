@@ -175,6 +175,15 @@
               "minimum": 0,
               "maximum": 1
             }
+          },
+          "frames": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
           }
         }
       }
@@ -202,6 +211,37 @@
         "cassette",
         "cd"
       ]
+    },
+    "spriteAtlas": {
+      "type": "object",
+      "properties": {
+        "atlasFile": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "source": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "sourceWidth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8192
+        },
+        "sourceHeight": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8192
+        },
+        "hasAlpha": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string",
+          "maxLength": 32
+        }
+      }
     }
   }
 }

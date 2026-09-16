@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Numerics;
+using System.Text.Json;
 using Moss.Core;
 
 namespace Moss.Windows;
@@ -22,6 +25,14 @@ public sealed class CreatureRenderer : IDisposable
 	private string comment = "";
 
 	private readonly Character character;
+
+	private readonly string? characterDir;
+
+	private Bitmap? spriteSheet;
+
+	private Dictionary<string, Rectangle>? spriteCells;
+
+	private bool spriteChecked;
 
 	private readonly SolidBrush body;
 
@@ -105,8 +116,14 @@ public sealed class CreatureRenderer : IDisposable
 	}
 
 	public CreatureRenderer(Character c)
+		: this(c, null)
+	{
+	}
+
+	public CreatureRenderer(Character c, string? characterDir)
 	{
 		character = c;
+		this.characterDir = characterDir;
 		body = new SolidBrush(ColorTranslator.FromHtml(c.Body));
 		belly = new SolidBrush(ColorTranslator.FromHtml(c.Belly));
 		ink = new SolidBrush(ColorTranslator.FromHtml(c.Ink));
@@ -199,6 +216,14 @@ public sealed class CreatureRenderer : IDisposable
 		}
 		if (character.Species != "bean")
 		{
+			if (TryGetSprite(animation.State, animation.FrameIndex, out Bitmap? sheet, out Rectangle cell) && sheet != null)
+			{
+				DrawSprite(graphics, creature, sheet, cell, width, height);
+				DrawWearables(graphics, width, height, hat, glasses);
+				graphics.Restore(gstate);
+				Effects(graphics, creature, music, reduced, musicComments);
+				return bitmap;
+			}
 			DrawSpecies(graphics, creature, animation, world, cursorAware, music, pose, num4, num5, reduced);
 			DrawWearables(graphics, width, height, hat, glasses);
 			graphics.Restore(gstate);
@@ -393,6 +418,7 @@ public sealed class CreatureRenderer : IDisposable
 	public void Dispose()
 	{
 		bitmap?.Dispose();
+		spriteSheet?.Dispose();
 		coat.Dispose();
 		blush.Dispose();
 		body.Dispose();
@@ -402,6 +428,223 @@ public sealed class CreatureRenderer : IDisposable
 		white.Dispose();
 		outline.Dispose();
 		sleepFont.Dispose();
+	}
+
+	private bool TryGetSprite(Motion state, int frame, out Bitmap? sheet, out Rectangle cell)
+	{
+		sheet = null;
+		cell = Rectangle.Empty;
+		try
+		{
+			if (spriteChecked)
+			{
+				if (spriteSheet != null && spriteCells != null && TryFindCell(state, frame, out cell))
+				{
+					sheet = spriteSheet;
+					return true;
+				}
+				return false;
+			}
+			spriteChecked = true;
+			if (character.SpriteAtlas == null || string.IsNullOrEmpty(characterDir))
+			{
+				return false;
+			}
+			string atlasPath = Path.Combine(characterDir, character.SpriteAtlas.AtlasFile);
+			if (!File.Exists(atlasPath) || new FileInfo(atlasPath).Length > 262144)
+			{
+				return false;
+			}
+			using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(atlasPath));
+			JsonElement root = doc.RootElement;
+			JsonElement cells;
+			string pngName = "atlas.png";
+			int sheetW = 0, sheetH = 0;
+			if (root.TryGetProperty("packed", out JsonElement packed) && packed.ValueKind == JsonValueKind.Object
+				&& packed.TryGetProperty("cells", out JsonElement packedCells) && packedCells.ValueKind == JsonValueKind.Object)
+			{
+				cells = packedCells;
+				if (packed.TryGetProperty("png", out JsonElement packedPng) && packedPng.ValueKind == JsonValueKind.String)
+				{
+					string? packedName = packedPng.GetString();
+					if (!string.IsNullOrWhiteSpace(packedName) && packedName.Length <= 64 && packedName.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+						&& packedName.IndexOfAny(new char[] { '/', '\\', ':' }) < 0)
+					{
+						pngName = packedName;
+					}
+				}
+				if (packed.TryGetProperty("width", out JsonElement packedW) && packedW.TryGetInt32(out int pw) && pw > 0 && pw <= 4096
+					&& packed.TryGetProperty("height", out JsonElement packedH) && packedH.TryGetInt32(out int ph) && ph > 0 && ph <= 4096)
+				{
+					sheetW = pw;
+					sheetH = ph;
+				}
+			}
+			else if (root.TryGetProperty("cells", out JsonElement flatCells) && flatCells.ValueKind == JsonValueKind.Object)
+			{
+				cells = flatCells;
+				if (root.TryGetProperty("png", out JsonElement flatPng) && flatPng.ValueKind == JsonValueKind.String)
+				{
+					string? flatName = flatPng.GetString();
+					if (!string.IsNullOrWhiteSpace(flatName) && flatName.Length <= 64 && flatName.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+						&& flatName.IndexOfAny(new char[] { '/', '\\', ':' }) < 0)
+					{
+						pngName = flatName;
+					}
+				}
+			}
+			else
+			{
+				Log.Event("sprite", "atlas-reference-only");
+				return false;
+			}
+			var parsed = new Dictionary<string, Rectangle>(StringComparer.Ordinal);
+			foreach (JsonProperty prop in cells.EnumerateObject())
+			{
+				if (parsed.Count >= 64 || prop.Value.ValueKind != JsonValueKind.Array || prop.Value.GetArrayLength() != 4)
+				{
+					continue;
+				}
+				int[] rect = new int[4];
+				bool valid = true;
+				int i = 0;
+				foreach (JsonElement num in prop.Value.EnumerateArray())
+				{
+					if (!num.TryGetInt32(out rect[i]) || rect[i] < 0 || rect[i] > 8192)
+					{
+						valid = false;
+						break;
+					}
+					i++;
+				}
+				if (!valid || rect[2] <= 0 || rect[3] <= 0 || rect[2] > 1024 || rect[3] > 1024)
+				{
+					continue;
+				}
+				int boundW = sheetW > 0 ? sheetW : character.SpriteAtlas.SourceWidth;
+				int boundH = sheetH > 0 ? sheetH : character.SpriteAtlas.SourceHeight;
+				if (boundW > 0 && boundH > 0
+					&& (rect[0] + rect[2] > boundW || rect[1] + rect[3] > boundH))
+				{
+					continue;
+				}
+				string baseName = prop.Name;
+				int hash = baseName.IndexOf('#');
+				if (hash >= 0)
+				{
+					string suffix = baseName.Substring(hash + 1);
+					baseName = baseName.Substring(0, hash);
+					if (suffix.Length == 0 || suffix.Length > 2)
+					{
+						continue;
+					}
+					foreach (char ch in suffix)
+					{
+						if (!char.IsAsciiDigit(ch))
+						{
+							valid = false;
+							break;
+						}
+					}
+					if (!valid)
+					{
+						continue;
+					}
+				}
+				if (Enum.TryParse<Motion>(baseName, out _))
+				{
+					parsed[prop.Name] = Rectangle.FromLTRB(rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3]);
+				}
+			}
+			if (parsed.Count == 0)
+			{
+				return false;
+			}
+			string pngPath = Path.Combine(characterDir, pngName);
+			if (!File.Exists(pngPath) || new FileInfo(pngPath).Length > 8 * 1024 * 1024)
+			{
+				return false;
+			}
+			if (!character.SpriteAtlas.HasAlpha)
+			{
+				Log.Event("sprite", "atlas-has-no-alpha-fallback");
+				return false;
+			}
+			Bitmap loaded = new Bitmap(pngPath);
+			try
+			{
+				if (!Image.IsAlphaPixelFormat(loaded.PixelFormat))
+				{
+					loaded.Dispose();
+					Log.Event("sprite", "atlas-has-no-alpha-fallback");
+					return false;
+				}
+			}
+			catch
+			{
+				loaded.Dispose();
+				return false;
+			}
+			spriteSheet = loaded;
+			spriteCells = parsed;
+			if (TryFindCell(state, frame, out cell))
+			{
+				sheet = spriteSheet;
+				return true;
+			}
+			return false;
+		}
+		catch (Exception error)
+		{
+			Log.Error("sprite", error);
+			return false;
+		}
+	}
+
+	private bool TryFindCell(Motion state, int frame, out Rectangle cell)
+	{
+		cell = Rectangle.Empty;
+		if (spriteCells == null)
+		{
+			return false;
+		}
+		if (spriteCells.TryGetValue(state.ToString() + "#" + Math.Max(0, frame), out cell))
+		{
+			return true;
+		}
+		return spriteCells.TryGetValue(state.ToString(), out cell);
+	}
+
+	private void DrawSprite(Graphics g, Creature c, Bitmap sheet, Rectangle cell, float width, float height)
+	{
+		float s = height / Math.Max(1, cell.Height);
+		float destW = cell.Width * s;
+		float destH = cell.Height * s;
+		GraphicsState state = g.Save();
+		try
+		{
+			if (c.Facing < 0)
+			{
+				g.ScaleTransform(-1f, 1f);
+			}
+			InterpolationMode previous = g.InterpolationMode;
+			PixelOffsetMode offset = g.PixelOffsetMode;
+			g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+			g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+			try
+			{
+				g.DrawImage(sheet, new RectangleF(-destW / 2f, -destH, destW, destH), cell, GraphicsUnit.Pixel);
+			}
+			finally
+			{
+				g.InterpolationMode = previous;
+				g.PixelOffsetMode = offset;
+			}
+		}
+		finally
+		{
+			g.Restore(state);
+		}
 	}
 
 	private void DrawSpecies(Graphics g, Creature c, Animator a, World world, bool cursor, bool music, Pose p, float gait, float move, bool reduced)

@@ -21,6 +21,8 @@ public sealed class Character
 
 	public string MusicProp { get; set; } = "headphones";
 
+	public SpriteAtlasRef? SpriteAtlas { get; set; }
+
 	public string Body { get; set; } = "#A9BB82";
 
 	public string Belly { get; set; } = "#E4E9CC";
@@ -71,7 +73,8 @@ public sealed class Character
 					Arms = clip.Arms,
 					Duration = clip.Duration,
 					Loop = clip.Loop,
-					Markers = (float[])clip.Markers.Clone()
+					Markers = (float[])clip.Markers.Clone(),
+					Frames = (string[])clip.Frames.Clone()
 				};
 			}
 		}
@@ -126,6 +129,10 @@ public sealed class Character
 		if (!flag)
 		{
 			throw new InvalidDataException("Unsupported accessory.");
+		}
+		if (SpriteAtlas != null)
+		{
+			SpriteAtlas.Validate();
 		}
 		if (FormatVersion != 1 || Rig != "bean-1")
 		{
@@ -222,6 +229,71 @@ public sealed class Character
 			{
 				throw new InvalidDataException("Invalid marker.");
 			}
+			if (value.Frames == null || value.Frames.Length > 8)
+			{
+				throw new InvalidDataException("Invalid frames.");
+			}
+			foreach (string frame in value.Frames)
+			{
+				if (string.IsNullOrEmpty(frame) || frame.Length > 64)
+				{
+					throw new InvalidDataException("Invalid frame key.");
+				}
+				foreach (char ch in frame)
+				{
+					bool ok = char.IsAsciiLetterOrDigit(ch) || ch == '#' || ch == '_' || ch == '-' || ch == '.';
+					if (!ok)
+					{
+						throw new InvalidDataException("Invalid frame key.");
+					}
+				}
+			}
+		}
+	}
+}
+
+/// <summary>
+/// Optional sprite-atlas reference for a character. Null for all procedural
+/// (vector) characters. When present, the detailed grid lives in a sidecar
+/// atlas file (see characters/wren/atlas.json) so character.json stays small;
+/// Core never touches the filesystem for it — loading is lazy in the renderer
+/// and only for the active character.
+/// </summary>
+public sealed class SpriteAtlasRef
+{
+	public string AtlasFile { get; set; } = "atlas.json";
+
+	public string Source { get; set; } = "";
+
+	public int SourceWidth { get; set; }
+
+	public int SourceHeight { get; set; }
+
+	public bool HasAlpha { get; set; }
+
+	public string Mode { get; set; } = "reference-only";
+
+	public void Validate()
+	{
+		if (string.IsNullOrWhiteSpace(AtlasFile) || AtlasFile.Length > 256)
+		{
+			throw new InvalidDataException("Invalid atlas file reference.");
+		}
+		foreach (char c in AtlasFile)
+		{
+			bool ok = char.IsAsciiLetterOrDigit(c) || c == '.' || c == '-' || c == '_';
+			if (!ok)
+			{
+				throw new InvalidDataException("Invalid atlas file reference.");
+			}
+		}
+		if (Source == null || Source.Length > 256 || Mode == null || Mode.Length > 32)
+		{
+			throw new InvalidDataException("Invalid atlas metadata.");
+		}
+		if (SourceWidth < 0 || SourceWidth > 8192 || SourceHeight < 0 || SourceHeight > 8192)
+		{
+			throw new InvalidDataException("Invalid atlas dimensions.");
 		}
 	}
 }

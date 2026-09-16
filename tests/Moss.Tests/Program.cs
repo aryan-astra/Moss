@@ -69,7 +69,7 @@ internal static class Program
 		string root = FindRepoRoot();
 		RepoRoot = root;
 
-		string[] species = { "moss", "miso", "pip", "lark", "inky", "clover", "puck" };
+		string[] species = { "moss", "miso", "pip", "lark", "inky", "clover", "puck", "wren" };
 		int motions = Enum.GetNames<Motion>().Length;
 		Check(motions == 28, "motion set has 28 states");
 		foreach (string name in species)

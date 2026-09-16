@@ -581,7 +581,7 @@ internal sealed class SettingsForm : Form
 			{
 				break;
 			}
-			TextBlock("Seven small personalities. One companion at a time. Notes belong to you and stay with every pet.");
+			TextBlock("Small personalities. One companion at a time. Notes belong to you and stay with every pet.");
 			string[] directories = Directory.GetDirectories(Path.Combine(AppContext.BaseDirectory, "characters"));
 			foreach (string text2 in directories)
 			{

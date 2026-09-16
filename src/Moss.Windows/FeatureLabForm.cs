@@ -526,6 +526,7 @@ internal sealed class FeatureLabForm : Form
 		Act("Radio pet", "radio lark puck", "Switch to Lark (radio).", () => { Status(app.LabDevice("lark") ? "Lark tunes a radio." : "Switch failed."); });
 		Act("Turntable pet", "turntable vinyl inky", "Switch to Inky (turntable).", () => { Status(app.LabDevice("inky") ? "Inky drops the needle." : "Switch failed."); });
 		Act("Cassette pet", "cassette tape clover", "Switch to Clover (cassette).", () => { Status(app.LabDevice("clover") ? "Clover plays tape." : "Switch failed."); });
+		Act("Wren pet", "wren bird experimental headphones", "Switch to Wren (headphones, experimental atlas bird).", () => { Status(app.LabDevice("wren") ? "Wren has headphones." : "Switch failed."); });
 		musicStatus = new Label { AutoSize = true, MaximumSize = new Size(720, 0), Margin = new Padding(0, 6, 0, 10), Font = smallFont };
 		list.Controls.Add(musicStatus);
 	}
